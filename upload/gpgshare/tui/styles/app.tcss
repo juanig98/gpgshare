@@ -1,0 +1,187 @@
+/* GPGShare TUI — base styles */
+
+$primary: #4a9eff;
+$success: #22c55e;
+$warning: #f59e0b;
+$error: #ef4444;
+$surface: #1e1e2e;
+$muted: #6b7280;
+
+/* ── Layout ─────────────────────────────────────────────── */
+
+Screen {
+    background: $surface;
+}
+
+/* ── Home ────────────────────────────────────────────────── */
+
+#home-title {
+    text-style: bold;
+    color: $primary;
+    text-align: center;
+    padding: 1 0;
+    width: 100%;
+}
+
+#home-subtitle {
+    color: $muted;
+    text-align: center;
+    padding: 0 0 2 0;
+    width: 100%;
+}
+
+#menu-container {
+    width: 40;
+    height: auto;
+    padding: 1 2;
+    border: round $primary;
+}
+
+#menu-container Button {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+/* ── Identity bar ────────────────────────────────────────── */
+
+#identity-bar {
+    background: $surface;
+    color: $muted;
+    padding: 0 1;
+}
+
+/* ── Forms ───────────────────────────────────────────────── */
+
+.form-label {
+    color: $muted;
+    padding: 1 0 0 0;
+}
+
+.form-section {
+    padding: 1 2;
+    height: auto;
+}
+
+.form-actions {
+    padding: 1 0;
+    height: auto;
+    layout: horizontal;
+}
+
+.form-actions Button {
+    margin-right: 1;
+}
+
+/* ── CipherOutput ────────────────────────────────────────── */
+
+#cipher-output {
+    border: round $success;
+    padding: 0 1;
+    height: auto;
+    max-height: 14;
+    display: none;
+}
+
+#cipher-output.visible {
+    display: block;
+}
+
+#cipher-output-actions {
+    layout: horizontal;
+    padding: 0 0 1 0;
+    height: auto;
+}
+
+#cipher-output-actions Button {
+    margin-right: 1;
+}
+
+/* ── Signature badge ─────────────────────────────────────── */
+
+#sig-badge {
+    padding: 0 1;
+    height: 1;
+    display: none;
+}
+
+#sig-badge.valid {
+    color: $success;
+    display: block;
+}
+
+#sig-badge.unknown {
+    color: $warning;
+    display: block;
+}
+
+/* ── Collaborators table ─────────────────────────────────── */
+
+#collab-actions {
+    layout: horizontal;
+    padding: 1 0;
+    height: auto;
+}
+
+#collab-actions Button {
+    margin-right: 1;
+}
+
+/* ── Modal ───────────────────────────────────────────────── */
+
+AddCollaboratorModal {
+    align: center middle;
+}
+
+#modal-container {
+    width: 60;
+    height: auto;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+}
+
+#modal-title {
+    text-style: bold;
+    color: $primary;
+    padding-bottom: 1;
+}
+
+#modal-actions {
+    layout: horizontal;
+    padding-top: 1;
+    height: auto;
+}
+
+#modal-actions Button {
+    margin-right: 1;
+}
+
+/* ── Passphrase prompt ───────────────────────────────────── */
+
+#passphrase-row {
+    layout: horizontal;
+    height: auto;
+    padding-top: 1;
+}
+
+#passphrase-row Label {
+    width: auto;
+    padding-top: 1;
+    padding-right: 1;
+}
+
+#passphrase-input {
+    width: 1fr;
+}
+
+/* ── Loading ─────────────────────────────────────────────── */
+
+#loading-overlay {
+    display: none;
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#loading-overlay.visible {
+    display: block;
+}
