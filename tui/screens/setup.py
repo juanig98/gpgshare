@@ -1,6 +1,6 @@
 """
 SetupScreen — formulario para configurar .env desde la TUI.
-Closes #1, #2
+Closes #1, #2, #3
 """
 
 import os
@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Header, Footer, Button, Input, Label, Static, Select
 from textual.containers import Vertical, ScrollableContainer
 from textual import work
+from gpgshare.tui.widgets.cipher_output import CipherOutput
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -102,6 +103,23 @@ class SetupScreen(Screen):
                     yield Button("Registrar mi clave", id="btn-register", variant="primary")
                 yield Static("", id="register-status")
 
+                # ── Sección 3: Exportar mi clave pública ─────────────────
+                yield Static("Exportar mi clave pública", id="export-title")
+                yield Static(
+                    "Obtené tu clave pública para compartir con otros colaboradores.",
+                    id="export-subtitle",
+                )
+                yield Label("Seleccionar clave GPG *", classes="form-label")
+                yield Select(
+                    options=[],
+                    prompt="Cargando claves...",
+                    id="select-key-export",
+                    allow_blank=True,
+                )
+                with Vertical(classes="form-actions"):
+                    yield Button("Exportar", id="btn-export", variant="primary")
+                yield CipherOutput(title="Clave pública", id="export-output")
+
         yield Footer()
 
     def on_mount(self) -> None:
@@ -116,7 +134,6 @@ class SetupScreen(Screen):
         self.app.call_from_thread(self._populate_select, keys)
 
     def _populate_select(self, keys: list[dict]) -> None:
-        select: Select = self.query_one("#select-key", Select)
         cfg = getattr(self.app, "_cfg", None)
         signer_email = cfg.signer_email if cfg else _read_env().get("GPG_SIGNER_EMAIL", "")
 
@@ -128,13 +145,16 @@ class SetupScreen(Screen):
             if signer_email and any(signer_email.lower() in uid.lower() for uid in k["uids"]):
                 preselect = k["keyid"]
 
-        if not options:
-            select.set_options([("No se encontraron claves secretas en el keyring", "")])
-            return
+        empty_opts = [("No se encontraron claves secretas en el keyring", "")]
 
-        select.set_options(options)
-        if preselect:
-            select.value = preselect
+        for sel_id in ("#select-key", "#select-key-export"):
+            select: Select = self.query_one(sel_id, Select)
+            if not options:
+                select.set_options(empty_opts)
+            else:
+                select.set_options(options)
+                if preselect:
+                    select.value = preselect
 
     def action_go_back(self) -> None:
         self.app.pop_screen()
@@ -150,6 +170,8 @@ class SetupScreen(Screen):
                 self.action_go_back()
             case "btn-register":
                 self._do_register()
+            case "btn-export":
+                self._do_export()
 
     def _do_save(self) -> None:
         values: dict[str, str] = {}
@@ -249,3 +271,27 @@ class SetupScreen(Screen):
 
     def _set_register_status(self, msg: str) -> None:
         self.query_one("#register-status", Static).update(msg)
+
+    def _do_export(self) -> None:
+        select: Select = self.query_one("#select-key-export", Select)
+        keyid = select.value
+        if not keyid or keyid is Select.BLANK:
+            self.notify("Seleccioná una clave GPG.", severity="warning")
+            return
+        self._run_export(keyid)
+
+    @work(thread=True)
+    def _run_export(self, keyid: str) -> None:
+        from gpgshare.crypto import export_public_key
+        cfg = getattr(self.app, "_cfg", None)
+        gpg_home = cfg.gpg_home if cfg else None
+        ok, result = export_public_key(keyid, gpg_home)
+        if not ok:
+            self.app.call_from_thread(
+                self.notify, f"Error al exportar clave: {result}", severity="error"
+            )
+            return
+        self.app.call_from_thread(self._show_export, result)
+
+    def _show_export(self, armored: str) -> None:
+        self.query_one("#export-output", CipherOutput).set_content(armored)

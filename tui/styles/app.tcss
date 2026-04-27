@@ -233,3 +233,16 @@ AddCollaboratorModal {
     padding: 1 0;
     height: auto;
 }
+
+#export-title {
+    text-style: bold;
+    color: $primary;
+    padding: 2 0 0 0;
+    width: 100%;
+}
+
+#export-subtitle {
+    color: $muted;
+    padding: 0 0 1 0;
+    width: 100%;
+}
