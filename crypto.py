@@ -59,6 +59,9 @@ def encrypt_and_sign(
     """
     gpg = _gpg(gpg_home)
 
+    # --pinentry-mode loopback prevents gpg-agent from launching a pinentry
+    # dialog (curses/mac) which fails without a real TTY — always needed when
+    # GPG is invoked programmatically (e.g. macOS + Homebrew GPG 2.x).
     result = gpg.encrypt(
         content,
         recipients=[recipient_email],
@@ -66,10 +69,12 @@ def encrypt_and_sign(
         passphrase=passphrase,
         armor=True,
         always_trust=True,
+        extra_args=["--pinentry-mode", "loopback"],
     )
 
     if not result.ok:
-        return False, f"Encryption failed: {result.status}"
+        error_detail = result.stderr.strip() if result.stderr else result.status
+        return False, f"Encryption failed: {error_detail}"
 
     return True, str(result)
 
@@ -89,10 +94,12 @@ def decrypt_and_verify(
         ciphertext,
         passphrase=passphrase,
         always_trust=True,
+        extra_args=["--pinentry-mode", "loopback"],
     )
 
     if not result.ok:
-        return False, f"Decryption failed: {result.status}", None
+        error_detail = result.stderr.strip() if result.stderr else result.status
+        return False, f"Decryption failed: {error_detail}", None
 
     signer = result.fingerprint if result.fingerprint else None
     return True, str(result), signer
