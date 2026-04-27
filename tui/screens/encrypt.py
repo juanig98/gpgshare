@@ -12,12 +12,13 @@ from textual import work
 
 from gpgshare.tui.widgets.key_selector import KeySelector
 from gpgshare.tui.widgets.cipher_output import CipherOutput
+from gpgshare.i18n import t
 
 
 class EncryptScreen(Screen):
     BINDINGS = [
-        Binding("escape", "pop_screen", "Volver", priority=True),
-        ("ctrl+e", "encrypt", "Cifrar"),
+        Binding("escape", "pop_screen", "Back", priority=True),
+        ("ctrl+e", "encrypt", "Encrypt"),
     ]
 
     def __init__(self) -> None:
@@ -29,23 +30,23 @@ class EncryptScreen(Screen):
         yield Header(show_clock=True)
         with ScrollableContainer():
             with Vertical(classes="form-section"):
-                yield Label("Cifrar mensaje", classes="form-label")
+                yield Label(t("encrypt.label_message"), classes="form-label")
                 yield TextArea("", id="message-input", language=None)
 
                 yield KeySelector(id="key-selector")
 
-                yield Checkbox("Firmar con mi clave", value=True, id="chk-sign")
+                yield Checkbox(t("encrypt.chk_sign"), value=True, id="chk-sign")
 
                 with Horizontal(id="passphrase-row"):
-                    yield Label("Passphrase (vacío = gpg-agent):")
+                    yield Label(t("encrypt.label_passphrase"))
                     yield Input(password=True, placeholder="", id="passphrase-input")
 
                 with Horizontal(classes="form-actions"):
-                    yield Button("Cifrar", id="btn-encrypt", variant="primary")
-                    yield Button("Volver", id="btn-back", variant="default")
+                    yield Button(t("encrypt.btn_encrypt"), id="btn-encrypt", variant="primary")
+                    yield Button(t("encrypt.btn_back"), id="btn-back", variant="default")
 
                 yield LoadingIndicator(id="loading")
-                yield CipherOutput(title="Mensaje cifrado", id="cipher-output")
+                yield CipherOutput(title=t("encrypt.cipher_output_title"), id="cipher-output")
         yield Footer()
 
     def on_key(self, event) -> None:
@@ -55,10 +56,10 @@ class EncryptScreen(Screen):
 
     def on_mount(self) -> None:
         self.query_one("#loading", LoadingIndicator).display = False
-        self.title = "GPGShare — Cifrar"
+        self.title = t("encrypt.title")
         cfg = getattr(self.app, "_cfg", None)
         if cfg:
-            self.sub_title = f"Firmando como: {cfg.signer_email}"
+            self.sub_title = t("encrypt.subtitle_signing", email=cfg.signer_email)
 
     def on_key_selector_collaborator_selected(self, event: KeySelector.CollaboratorSelected) -> None:
         self._selected_alias = event.alias
@@ -73,17 +74,17 @@ class EncryptScreen(Screen):
 
     def action_encrypt(self) -> None:
         if self._selected_email is None:
-            self.app.notify("Elegí un destinatario primero.", severity="warning")
+            self.app.notify(t("encrypt.notify.no_recipient"), severity="warning")
             return
 
         message = self.query_one("#message-input", TextArea).text.strip()
         if not message:
-            self.app.notify("El mensaje está vacío.", severity="warning")
+            self.app.notify(t("encrypt.notify.empty_message"), severity="warning")
             return
 
         cfg = getattr(self.app, "_cfg", None)
         if cfg is None:
-            self.app.notify("Configuración no disponible.", severity="error")
+            self.app.notify(t("encrypt.notify.no_config"), severity="error")
             return
 
         passphrase = self.query_one("#passphrase-input", Input).value or None
@@ -111,11 +112,10 @@ class EncryptScreen(Screen):
         try:
             cfg = self.app._cfg
 
-            # Import recipient key
             collab = find_by_alias(cfg.collaborators_file, self._selected_alias)
             if collab is None:
                 self.app.call_from_thread(
-                    self.app.notify, "Colaborador no encontrado.", severity="error"
+                    self.app.notify, t("encrypt.notify.collaborator_not_found"), severity="error"
                 )
                 return
 
@@ -123,16 +123,15 @@ class EncryptScreen(Screen):
             ok, result = crypto.import_key(str(key_path), cfg.gpg_home)
             if not ok:
                 self.app.call_from_thread(
-                    self.app.notify, f"No se pudo importar la clave: {result}", severity="error"
+                    self.app.notify, t("encrypt.notify.error_import_key", result=result), severity="error"
                 )
                 return
 
-            # Import own private key only when keyring is disabled
             if cfg.keyring_disabled:
                 ok, result = crypto.import_key(cfg.private_key_path, cfg.gpg_home)
                 if not ok:
                     self.app.call_from_thread(
-                        self.app.notify, f"No se pudo importar clave privada: {result}", severity="error"
+                        self.app.notify, t("encrypt.notify.error_import_private", result=result), severity="error"
                     )
                     return
 
@@ -148,7 +147,7 @@ class EncryptScreen(Screen):
                 self.app.call_from_thread(self._show_result, ciphertext)
             else:
                 self.app.call_from_thread(
-                    self.app.notify, f"Error al cifrar: {ciphertext}", severity="error"
+                    self.app.notify, t("encrypt.notify.error_encrypt", ciphertext=ciphertext), severity="error"
                 )
         finally:
             self.app.call_from_thread(self._set_loading, False)
@@ -159,4 +158,4 @@ class EncryptScreen(Screen):
 
     def _show_result(self, ciphertext: str) -> None:
         self.query_one("#cipher-output", CipherOutput).set_content(ciphertext)
-        self.app.notify("Mensaje cifrado correctamente.", severity="information")
+        self.app.notify(t("encrypt.notify.success"), severity="information")

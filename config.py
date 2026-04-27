@@ -21,6 +21,7 @@ class Config:
     keys_dir: Path
     collaborators_file: Path
     keyring_disabled: bool
+    language: str
 
     @classmethod
     def load(cls) -> "Config":
@@ -32,6 +33,7 @@ class Config:
             os.getenv("COLLABORATORS_FILE", str(_PROJECT_ROOT / "collaborators.yaml"))
         )
         keyring_disabled = os.getenv("KEYRING_DISABLED", "false").strip().lower() == "true"
+        language = os.getenv("LANGUAGE", "en").strip().lower()
 
         errors = []
         if not private_key_path:
@@ -50,4 +52,5 @@ class Config:
             keys_dir=keys_dir.expanduser(),
             collaborators_file=collaborators_file.expanduser(),
             keyring_disabled=keyring_disabled,
+            language=language,
         )

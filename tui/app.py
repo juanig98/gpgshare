@@ -24,6 +24,8 @@ class GpgShareApp(App):
 
         try:
             self._cfg = Config.load()
+            from gpgshare.i18n import setup_language
+            setup_language(self._cfg.language)
             errors = validate_registry(self._cfg.collaborators_file, self._cfg.keys_dir)
             if errors:
                 for err in errors:

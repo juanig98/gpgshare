@@ -11,39 +11,40 @@ from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual import work
 
 from gpgshare.tui.widgets.cipher_output import CipherOutput
+from gpgshare.i18n import t
 
 
 class DecryptScreen(Screen):
     BINDINGS = [
-        Binding("escape", "pop_screen", "Volver", priority=True),
-        ("ctrl+d", "decrypt", "Descifrar"),
+        Binding("escape", "pop_screen", "Back", priority=True),
+        ("ctrl+d", "decrypt", "Decrypt"),
     ]
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with ScrollableContainer():
             with Vertical(classes="form-section"):
-                yield Label("Texto cifrado (ASCII armor)", classes="form-label")
+                yield Label(t("decrypt.label_ciphertext"), classes="form-label")
                 yield TextArea("", id="cipher-input", language=None)
 
                 with Horizontal(classes="form-actions"):
-                    yield Button("Cargar desde archivo…", id="btn-load-toggle")
+                    yield Button(t("decrypt.btn_load_toggle"), id="btn-load-toggle")
 
                 with Horizontal(id="load-path-row"):
-                    yield Input(placeholder="/ruta/al/archivo.gpg", id="load-path-input")
-                    yield Button("Cargar", id="btn-load-confirm", variant="default")
+                    yield Input(placeholder=t("decrypt.placeholder_file_path"), id="load-path-input")
+                    yield Button(t("decrypt.btn_load_confirm"), id="btn-load-confirm", variant="default")
 
                 with Horizontal(id="passphrase-row"):
-                    yield Label("Passphrase (vacío = gpg-agent):")
+                    yield Label(t("decrypt.label_passphrase"))
                     yield Input(password=True, placeholder="", id="passphrase-input")
 
                 with Horizontal(classes="form-actions"):
-                    yield Button("Descifrar", id="btn-decrypt", variant="primary")
-                    yield Button("Volver", id="btn-back", variant="default")
+                    yield Button(t("decrypt.btn_decrypt"), id="btn-decrypt", variant="primary")
+                    yield Button(t("decrypt.btn_back"), id="btn-back", variant="default")
 
                 yield LoadingIndicator(id="loading")
                 yield Static("", id="sig-badge")
-                yield CipherOutput(title="Mensaje descifrado", id="plain-output")
+                yield CipherOutput(title=t("decrypt.cipher_output_title"), id="plain-output")
         yield Footer()
 
     def on_key(self, event) -> None:
@@ -54,10 +55,10 @@ class DecryptScreen(Screen):
     def on_mount(self) -> None:
         self.query_one("#loading", LoadingIndicator).display = False
         self.query_one("#load-path-row").display = False
-        self.title = "GPGShare — Descifrar"
+        self.title = t("decrypt.title")
         cfg = getattr(self.app, "_cfg", None)
         if cfg:
-            self.sub_title = f"Firmando como: {cfg.signer_email}"
+            self.sub_title = t("decrypt.subtitle_signing", email=cfg.signer_email)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -76,24 +77,24 @@ class DecryptScreen(Screen):
     def _load_from_file(self) -> None:
         path_str = self.query_one("#load-path-input", Input).value.strip()
         if not path_str:
-            self.app.notify("Ingresá una ruta de archivo.", severity="warning")
+            self.app.notify(t("decrypt.notify.no_path"), severity="warning")
             return
         try:
             content = Path(path_str).read_text()
             self.query_one("#cipher-input", TextArea).load_text(content)
-            self.app.notify("Archivo cargado.", severity="information")
+            self.app.notify(t("decrypt.notify.file_loaded"), severity="information")
         except Exception as exc:
-            self.app.notify(f"Error al leer archivo: {exc}", severity="error")
+            self.app.notify(t("decrypt.notify.error_file", exc=exc), severity="error")
 
     def action_decrypt(self) -> None:
         ciphertext = self.query_one("#cipher-input", TextArea).text.strip()
         if not ciphertext:
-            self.app.notify("Pegá el texto cifrado primero.", severity="warning")
+            self.app.notify(t("decrypt.notify.no_ciphertext"), severity="warning")
             return
 
         cfg = getattr(self.app, "_cfg", None)
         if cfg is None:
-            self.app.notify("Configuración no disponible.", severity="error")
+            self.app.notify(t("decrypt.notify.no_config"), severity="error")
             return
 
         passphrase = self.query_one("#passphrase-input", Input).value or None
@@ -112,7 +113,7 @@ class DecryptScreen(Screen):
                 if not ok:
                     self.app.call_from_thread(
                         self.app.notify,
-                        f"No se pudo importar clave privada: {result}",
+                        t("decrypt.notify.error_import_private", result=result),
                         severity="error",
                     )
                     return
@@ -128,7 +129,7 @@ class DecryptScreen(Screen):
             else:
                 self.app.call_from_thread(
                     self.app.notify,
-                    f"Error al descifrar: {plaintext}",
+                    t("decrypt.notify.error_decrypt", plaintext=plaintext),
                     severity="error",
                 )
         finally:
@@ -143,12 +144,12 @@ class DecryptScreen(Screen):
 
         badge = self.query_one("#sig-badge", Static)
         if signer_fp:
-            badge.update(f"✓ Firma válida — fingerprint: {signer_fp}")
+            badge.update(t("decrypt.badge_valid_sig", signer_fp=signer_fp))
             badge.remove_class("unknown")
             badge.add_class("valid")
         else:
-            badge.update("⚠ Sin firma o no se pudo verificar")
+            badge.update(t("decrypt.badge_no_sig"))
             badge.remove_class("valid")
             badge.add_class("unknown")
 
-        self.app.notify("Mensaje descifrado correctamente.", severity="information")
+        self.app.notify(t("decrypt.notify.success"), severity="information")

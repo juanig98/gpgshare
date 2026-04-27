@@ -4,24 +4,27 @@ Closes #1, #2, #3
 """
 
 import os
+import re
 from pathlib import Path
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Button, Input, Label, Static, Select
 from textual.containers import Vertical, ScrollableContainer
 from textual import work
+from gpgshare.i18n import t
 from gpgshare.tui.widgets.cipher_output import CipherOutput
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _ENV_PATH = _PROJECT_ROOT / ".env"
 
+# (env_key, translation_key, optional)
 _FIELDS = [
-    ("GPG_SIGNER_EMAIL",      "Email del firmante (requerido)",             False),
-    ("GPG_PRIVATE_KEY_PATH",  "Ruta a la clave privada .asc (requerido)",   False),
-    ("GPG_HOME",              "Directorio GPG (opcional, default ~/.gnupg)", True),
-    ("KEYS_DIR",              "Directorio de claves públicas (opcional)",    True),
-    ("COLLABORATORS_FILE",    "Archivo de colaboradores (opcional)",         True),
+    ("GPG_SIGNER_EMAIL",      "setup.label_signer_email",       False),
+    ("GPG_PRIVATE_KEY_PATH",  "setup.label_private_key_path",   False),
+    ("GPG_HOME",              "setup.label_gpg_home",           True),
+    ("KEYS_DIR",              "setup.label_keys_dir",           True),
+    ("COLLABORATORS_FILE",    "setup.label_collaborators_file", True),
 ]
 
 
@@ -47,15 +50,10 @@ def _canonical_filename(email: str) -> str:
     return email.lower().replace("@", "-").replace(".", "-") + ".asc"
 
 
-def _uid_label(uid: str) -> str:
-    """Return 'Name <email>' or the raw uid string."""
-    return uid if uid else "(sin identificador)"
-
-
 class SetupScreen(Screen):
     BINDINGS = [
-        ("escape", "go_back", "Volver"),
-        ("ctrl+s", "save", "Guardar config"),
+        ("escape", "go_back", "Back"),
+        ("ctrl+s", "save", "Save config"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -63,62 +61,55 @@ class SetupScreen(Screen):
         with ScrollableContainer():
             with Vertical(id="setup-container"):
                 # ── Sección 1: .env ──────────────────────────────────────
-                yield Static("Configuración del entorno", id="setup-title")
-                yield Static(
-                    "Los campos requeridos se guardan en el archivo .env del proyecto.",
-                    id="setup-subtitle",
-                )
+                yield Static(t("setup.title"), id="setup-title")
+                yield Static(t("setup.subtitle"), id="setup-subtitle")
                 current = _read_env()
-                for key, label, optional in _FIELDS:
-                    yield Label(
-                        f"{label}{' *' if not optional else ''}",
-                        classes="form-label",
-                    )
-                    yield Input(
-                        value=current.get(key, ""),
-                        placeholder=key,
-                        id=f"input-{key}",
-                    )
+                for key, label_key, _ in _FIELDS:
+                    yield Label(t(label_key), classes="form-label")
+                    yield Input(value=current.get(key, ""), placeholder=key, id=f"input-{key}")
+
+                yield Label(t("setup.label_language"), classes="form-label")
+                yield Select(
+                    options=[("English", "en"), ("Español", "es")],
+                    id="input-LANGUAGE",
+                    value=current.get("LANGUAGE", "en"),
+                    allow_blank=False,
+                )
+
                 with Vertical(classes="form-actions"):
-                    yield Button("Guardar configuración", id="btn-save", variant="success")
-                    yield Button("Cancelar", id="btn-cancel")
+                    yield Button(t("setup.btn_save"), id="btn-save", variant="success")
+                    yield Button(t("setup.btn_cancel"), id="btn-cancel")
                 yield Static("", id="setup-status")
 
                 # ── Sección 2: Registrar mi clave pública ────────────────
-                yield Static("Registrar mi clave pública", id="register-title")
-                yield Static(
-                    "Exporta tu clave pública al directorio keys/ y te registra como colaborador.",
-                    id="register-subtitle",
-                )
-                yield Label("Seleccionar clave GPG *", classes="form-label")
+                yield Static(t("setup.register.title"), id="register-title")
+                yield Static(t("setup.register.subtitle"), id="register-subtitle")
+                yield Label(t("setup.register.label_select_key"), classes="form-label")
                 yield Select(
                     options=[],
-                    prompt="Cargando claves...",
+                    prompt=t("setup.register.prompt_loading"),
                     id="select-key",
                     allow_blank=True,
                 )
-                yield Label("Alias (tu nombre en el registro) *", classes="form-label")
-                yield Input(placeholder="ej: juan", id="input-alias")
+                yield Label(t("setup.register.label_alias"), classes="form-label")
+                yield Input(placeholder=t("setup.register.placeholder_alias"), id="input-alias")
                 with Vertical(classes="form-actions"):
-                    yield Button("Registrar mi clave", id="btn-register", variant="primary")
+                    yield Button(t("setup.register.btn"), id="btn-register", variant="primary")
                 yield Static("", id="register-status")
 
                 # ── Sección 3: Exportar mi clave pública ─────────────────
-                yield Static("Exportar mi clave pública", id="export-title")
-                yield Static(
-                    "Obtené tu clave pública para compartir con otros colaboradores.",
-                    id="export-subtitle",
-                )
-                yield Label("Seleccionar clave GPG *", classes="form-label")
+                yield Static(t("setup.export.title"), id="export-title")
+                yield Static(t("setup.export.subtitle"), id="export-subtitle")
+                yield Label(t("setup.export.label_select_key"), classes="form-label")
                 yield Select(
                     options=[],
-                    prompt="Cargando claves...",
+                    prompt=t("setup.register.prompt_loading"),
                     id="select-key-export",
                     allow_blank=True,
                 )
                 with Vertical(classes="form-actions"):
-                    yield Button("Exportar", id="btn-export", variant="primary")
-                yield CipherOutput(title="Clave pública", id="export-output")
+                    yield Button(t("setup.export.btn"), id="btn-export", variant="primary")
+                yield CipherOutput(title=t("setup.export.cipher_output_title"), id="export-output")
 
         yield Footer()
 
@@ -145,7 +136,7 @@ class SetupScreen(Screen):
             if signer_email and any(signer_email.lower() in uid.lower() for uid in k["uids"]):
                 preselect = k["keyid"]
 
-        empty_opts = [("No se encontraron claves secretas en el keyring", "")]
+        empty_opts = [(t("setup.select.no_keys"), "")]
 
         for sel_id in ("#select-key", "#select-key-export"):
             select: Select = self.query_one(sel_id, Select)
@@ -176,6 +167,7 @@ class SetupScreen(Screen):
     def _do_save(self) -> None:
         values: dict[str, str] = {}
         missing = []
+        current = _read_env()
 
         for key, _, optional in _FIELDS:
             widget: Input = self.query_one(f"#input-{key}", Input)
@@ -185,20 +177,28 @@ class SetupScreen(Screen):
             elif not optional:
                 missing.append(key)
 
+        lang_select: Select = self.query_one("#input-LANGUAGE", Select)
+        if lang_select.value and lang_select.value is not Select.BLANK:
+            values["LANGUAGE"] = str(lang_select.value)
+
         status = self.query_one("#setup-status", Static)
 
         if missing:
-            status.update(f"[red]Faltan campos requeridos: {', '.join(missing)}[/red]")
+            status.update(t("setup.status.missing_fields", fields=", ".join(missing)))
             return
 
         try:
             _write_env(values)
             for key, val in values.items():
                 os.environ[key] = val
-            self.notify("Configuración guardada correctamente.", severity="information", title="Setup")
+
+            lang_changed = values.get("LANGUAGE") != current.get("LANGUAGE", "en")
+            self.notify(t("setup.notify.saved"), severity="information", title="Setup")
+            if lang_changed:
+                self.notify(t("setup.notify.language_restart"), severity="warning", title="Setup")
             self.app.pop_screen()
         except OSError as exc:
-            status.update(f"[red]Error al guardar: {exc}[/red]")
+            status.update(t("setup.status.save_error", exc=exc))
 
     def _do_register(self) -> None:
         select: Select = self.query_one("#select-key", Select)
@@ -209,29 +209,27 @@ class SetupScreen(Screen):
         alias = alias_input.value.strip()
 
         if not keyid or keyid is Select.BLANK:
-            status.update("[red]Seleccioná una clave GPG.[/red]")
+            status.update(t("setup.status.no_key_selected"))
             return
         if not alias:
-            status.update("[red]El alias es requerido.[/red]")
+            status.update(t("setup.status.alias_required"))
             return
 
-        # Obtener el email del uid seleccionado
-        uid_label = str(select._options[  # buscar label del valor seleccionado
+        # Extraer email del uid (formato "Name <email@domain.com>")
+        uid_label = str(select._options[
             next(i for i, (_, v) in enumerate(select._options) if v == keyid)
         ][0]) if hasattr(select, "_options") else ""
 
-        # Extraer email del uid (formato "Name <email@domain.com>")
-        import re
         match = re.search(r"<(.+?)>", uid_label)
         email = match.group(1) if match else uid_label
 
-        status.update("[yellow]Registrando...[/yellow]")
+        status.update(t("setup.status.registering"))
         self._run_register(keyid, alias, email)
 
     @work(thread=True)
     def _run_register(self, keyid: str, alias: str, email: str) -> None:
         from gpgshare.crypto import export_public_key
-        from gpgshare.collaborators import add_collaborator, find_by_email, find_by_alias
+        from gpgshare.collaborators import add_collaborator
 
         cfg = getattr(self.app, "_cfg", None)
         gpg_home = cfg.gpg_home if cfg else None
@@ -246,7 +244,9 @@ class SetupScreen(Screen):
 
         ok, result = export_public_key(keyid, gpg_home)
         if not ok:
-            self.app.call_from_thread(self._set_register_status, f"[red]Error al exportar clave: {result}[/red]")
+            self.app.call_from_thread(
+                self._set_register_status, t("setup.status.export_error", result=result)
+            )
             return
 
         filename = _canonical_filename(email)
@@ -255,18 +255,20 @@ class SetupScreen(Screen):
             keys_dir.mkdir(parents=True, exist_ok=True)
             key_path.write_text(result)
         except OSError as exc:
-            self.app.call_from_thread(self._set_register_status, f"[red]Error al escribir {filename}: {exc}[/red]")
+            self.app.call_from_thread(
+                self._set_register_status, t("setup.status.save_error", exc=exc)
+            )
             return
 
         try:
             add_collaborator(collaborators_file, alias, email, filename)
         except ValueError as exc:
-            self.app.call_from_thread(self._set_register_status, f"[red]{exc}[/red]")
+            self.app.call_from_thread(self._set_register_status, str(exc))
             return
 
         self.app.call_from_thread(
             self._set_register_status,
-            f"[green]Clave registrada como '{alias}' ({email}) → keys/{filename}[/green]",
+            t("setup.status.registered", alias=alias, email=email, filename=filename),
         )
 
     def _set_register_status(self, msg: str) -> None:
@@ -276,7 +278,7 @@ class SetupScreen(Screen):
         select: Select = self.query_one("#select-key-export", Select)
         keyid = select.value
         if not keyid or keyid is Select.BLANK:
-            self.notify("Seleccioná una clave GPG.", severity="warning")
+            self.notify(t("setup.status.no_key_selected"), severity="warning")
             return
         self._run_export(keyid)
 
@@ -288,7 +290,7 @@ class SetupScreen(Screen):
         ok, result = export_public_key(keyid, gpg_home)
         if not ok:
             self.app.call_from_thread(
-                self.notify, f"Error al exportar clave: {result}", severity="error"
+                self.notify, t("setup.status.export_error", result=result), severity="error"
             )
             return
         self.app.call_from_thread(self._show_export, result)
