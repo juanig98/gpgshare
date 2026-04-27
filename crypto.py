@@ -112,6 +112,18 @@ def list_secret_keys(gpg_home: Optional[str] = None) -> list[dict]:
     ]
 
 
+def export_public_key(keyid: str, gpg_home: Optional[str] = None) -> tuple[bool, str]:
+    """
+    Export the ASCII-armored public key for `keyid`.
+    Returns (success, armored_key_or_error).
+    """
+    gpg = _gpg(gpg_home)
+    armored = gpg.export_keys(keyid)
+    if not armored:
+        return False, f"No public key found for keyid: {keyid}"
+    return True, armored
+
+
 def list_public_keys(gpg_home: Optional[str] = None) -> list[dict]:
     """Return a list of available public keys in the keyring."""
     gpg = _gpg(gpg_home)

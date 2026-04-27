@@ -215,3 +215,21 @@ AddCollaboratorModal {
     padding: 1 0;
     height: auto;
 }
+
+#register-title {
+    text-style: bold;
+    color: $primary;
+    padding: 2 0 0 0;
+    width: 100%;
+}
+
+#register-subtitle {
+    color: $muted;
+    padding: 0 0 1 0;
+    width: 100%;
+}
+
+#register-status {
+    padding: 1 0;
+    height: auto;
+}
