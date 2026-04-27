@@ -1,6 +1,7 @@
 """
 Tests for gpgshare.crypto — GPG operations.
 All calls to gnupg.GPG are mocked so no real GPG binary or keyring is needed.
+import_key uses subprocess.run directly; the remaining functions use gnupg.GPG.
 """
 
 import pytest
@@ -12,6 +13,14 @@ def _make_gpg_mock():
     return MagicMock()
 
 
+def _make_proc(returncode=0, stderr="", stdout=""):
+    proc = MagicMock()
+    proc.returncode = returncode
+    proc.stderr = stderr
+    proc.stdout = stdout
+    return proc
+
+
 # ── import_key ────────────────────────────────────────────────────────────────
 
 class TestImportKey:
@@ -19,72 +28,55 @@ class TestImportKey:
         key_file = tmp_path / "key.asc"
         key_file.write_text("-----BEGIN PGP PUBLIC KEY BLOCK-----\nfake\n-----END PGP PUBLIC KEY BLOCK-----\n")
 
-        import_result = MagicMock()
-        import_result.count = 1
-        import_result.fingerprints = ["ABCDEF1234567890"]
+        stderr = "gpg: key ABCDEF1234567890: public key imported\ngpg: Total number processed: 1"
+        proc = _make_proc(returncode=0, stderr=stderr)
 
-        gpg_mock = _make_gpg_mock()
-        gpg_mock.import_keys.return_value = import_result
-
-        with patch("gnupg.GPG", return_value=gpg_mock):
+        with patch("subprocess.run", return_value=proc):
             from gpgshare import crypto
             ok, fp = crypto.import_key(str(key_file))
 
         assert ok is True
         assert fp == "ABCDEF1234567890"
 
-    def test_failure_when_no_keys_imported(self, tmp_path):
+    def test_failure_when_import_fails(self, tmp_path):
         key_file = tmp_path / "key.asc"
         key_file.write_text("not a valid key")
 
-        import_result = MagicMock()
-        import_result.count = 0
-        import_result.fingerprints = []
+        proc = _make_proc(returncode=2, stderr="gpg: no valid OpenPGP data found")
 
-        gpg_mock = _make_gpg_mock()
-        gpg_mock.import_keys.return_value = import_result
-
-        with patch("gnupg.GPG", return_value=gpg_mock):
+        with patch("subprocess.run", return_value=proc):
             from gpgshare import crypto
             ok, msg = crypto.import_key(str(key_file))
 
         assert ok is False
-        assert "No keys were imported" in msg
+        assert "no valid OpenPGP data found" in msg
 
-    def test_uses_unknown_fingerprint_when_list_empty(self, tmp_path):
+    def test_returns_imported_when_no_fingerprint_in_stderr(self, tmp_path):
         key_file = tmp_path / "key.asc"
         key_file.write_text("key data")
 
-        import_result = MagicMock()
-        import_result.count = 1
-        import_result.fingerprints = []
+        proc = _make_proc(returncode=0, stderr="gpg: Total number processed: 1")
 
-        gpg_mock = _make_gpg_mock()
-        gpg_mock.import_keys.return_value = import_result
-
-        with patch("gnupg.GPG", return_value=gpg_mock):
+        with patch("subprocess.run", return_value=proc):
             from gpgshare import crypto
             ok, fp = crypto.import_key(str(key_file))
 
         assert ok is True
-        assert fp == "unknown"
+        assert fp == "imported"
 
-    def test_passes_gpg_home_to_constructor(self, tmp_path):
+    def test_passes_gpg_home_to_command(self, tmp_path):
         key_file = tmp_path / "key.asc"
         key_file.write_text("key data")
 
-        import_result = MagicMock()
-        import_result.count = 1
-        import_result.fingerprints = ["FP"]
+        stderr = "gpg: key ABCDEF1234567890: public key imported"
+        proc = _make_proc(returncode=0, stderr=stderr)
 
-        gpg_mock = _make_gpg_mock()
-        gpg_mock.import_keys.return_value = import_result
-
-        with patch("gnupg.GPG", return_value=gpg_mock) as gpg_cls:
+        with patch("subprocess.run", return_value=proc) as run_mock:
             from gpgshare import crypto
             crypto.import_key(str(key_file), gpg_home="/custom/home")
-            call_kwargs = gpg_cls.call_args[1]
-            assert call_kwargs.get("gnupghome") == "/custom/home"
+            cmd = run_mock.call_args[0][0]
+            assert "--homedir" in cmd
+            assert "/custom/home" in cmd
 
 
 # ── encrypt_and_sign ──────────────────────────────────────────────────────────
