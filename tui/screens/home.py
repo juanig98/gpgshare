@@ -13,6 +13,7 @@ class HomeScreen(Screen):
         ("1", "go_encrypt", "Cifrar"),
         ("2", "go_decrypt", "Descifrar"),
         ("3", "go_collaborators", "Colaboradores"),
+        ("s", "go_setup", "Configuración"),
         ("d", "toggle_dark", "Oscuro/Claro"),
         ("q", "quit_app", "Salir"),
     ]
@@ -27,6 +28,7 @@ class HomeScreen(Screen):
                     yield Button("1  Cifrar mensaje", id="btn-encrypt", variant="primary")
                     yield Button("2  Descifrar mensaje", id="btn-decrypt")
                     yield Button("3  Colaboradores", id="btn-collaborators")
+                    yield Button("S  Configuración", id="btn-setup", variant="warning")
                     yield Button("Q  Salir", id="btn-quit", variant="error")
         yield Footer()
 
@@ -43,6 +45,8 @@ class HomeScreen(Screen):
                 self.action_go_decrypt()
             case "btn-collaborators":
                 self.action_go_collaborators()
+            case "btn-setup":
+                self.action_go_setup()
             case "btn-quit":
                 self.action_quit_app()
 
@@ -57,6 +61,10 @@ class HomeScreen(Screen):
     def action_go_collaborators(self) -> None:
         from gpgshare.tui.screens.collaborators import CollaboratorsScreen
         self.app.push_screen(CollaboratorsScreen())
+
+    def action_go_setup(self) -> None:
+        from gpgshare.tui.screens.setup import SetupScreen
+        self.app.push_screen(SetupScreen())
 
     def action_toggle_dark(self) -> None:
         self.app.action_toggle_dark()

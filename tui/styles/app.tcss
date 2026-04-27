@@ -185,3 +185,33 @@ AddCollaboratorModal {
 #loading-overlay.visible {
     display: block;
 }
+
+/* ── Setup ───────────────────────────────────────────────── */
+
+#setup-container {
+    width: 60;
+    height: auto;
+    padding: 1 2;
+    border: round $warning;
+    margin: 1 0;
+}
+
+#setup-title {
+    text-style: bold;
+    color: $warning;
+    text-align: center;
+    padding: 1 0;
+    width: 100%;
+}
+
+#setup-subtitle {
+    color: $muted;
+    text-align: center;
+    padding: 0 0 1 0;
+    width: 100%;
+}
+
+#setup-status {
+    padding: 1 0;
+    height: auto;
+}
