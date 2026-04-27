@@ -1,207 +1,110 @@
 # gpgshare
 
-CLI para cifrar y descifrar mensajes entre colaboradores usando claves GPG.
-Firmado + cifrado en un solo paso. Output en ASCII armor, listo para pegar en cualquier canal.
+Encrypt and sign messages for your teammates using GPG — in one step.
+Paste the result anywhere: Slack, email, GitHub comments.
+
+Available as a **CLI** and a **terminal UI (TUI)**.
 
 ---
 
-## Requisitos
+## Getting Started
 
-- Python 3.11+
-- GPG instalado en el sistema (`brew install gnupg` en macOS)
-
----
-
-## Instalación
+### 1. Install
 
 ```bash
-git clone https://github.com/tu-org/gpgshare.git
+git clone https://github.com/juanig98/gpgshare.git
 cd gpgshare
-
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -e .
+bash install.sh
 ```
 
----
+The installer checks your Python version, sets up a virtual environment, installs dependencies, and copies the configuration template.
 
-## Configuración inicial
+### 2. Configure
 
-```bash
-cp .env.example .env
-```
-
-Editá `.env` con tus valores:
-
-```bash
-GPG_PRIVATE_KEY_PATH=~/.gnupg/mi-clave-privada.asc
-GPG_SIGNER_EMAIL=vos@tuempresa.com
-```
-
-> `.env` está en `.gitignore`. Nunca lo commitees.
-
----
-
-## Generar una clave GPG (si no tenés una)
-
-```bash
-gpg --full-generate-key
-```
-
-Seguí el asistente:
-1. Tipo de clave → **ECC (sign and encrypt)** o RSA 4096
-2. Curva o tamaño → default está bien
-3. Expiración → a tu criterio
-4. Nombre y email → los datos que van a identificar tu clave
-
-Para verificar que se creó:
-
-```bash
-gpg --list-secret-keys
-```
-
----
-
-## Exportar tu clave privada (para el .env)
-
-```bash
-gpg --armor --export-secret-keys vos@tuempresa.com > ~/mi-clave-privada.asc
-```
-
----
-
-## Registrarte como colaborador
-
-```bash
-# Exportar tu clave pública primero
-gpg --armor --export vos@tuempresa.com > /tmp/vos-tuempresa-com.asc
-
-# Registrarla en el proyecto
-gpgshare add-key tuAlias vos@tuempresa.com /tmp/vos-tuempresa-com.asc
-```
-
-Luego commiteá `collaborators.yaml` y el archivo `.asc` en `keys/` y abrí un Pull Request.
-
----
-
-## Comandos
-
-### Cifrar un mensaje
-
-```bash
-# Interactivo (te pide el mensaje)
-gpgshare encrypt juan
-
-# Con el mensaje directo
-gpgshare encrypt juan --message "Token de producción: abc123"
-
-# Desde stdin
-echo "mensaje secreto" | gpgshare encrypt juan
-
-# Guardar en archivo
-gpgshare encrypt juan -m "secreto" --output mensaje.asc
-
-# Copiar al portapapeles
-gpgshare encrypt juan -m "secreto" --clipboard
-
-# Con passphrase (si no usás gpg-agent)
-gpgshare encrypt juan -m "secreto" --passphrase
-```
-
-### Descifrar un mensaje
-
-```bash
-# Pegar ciphertext por stdin
-gpgshare decrypt
-
-# Desde archivo
-gpgshare decrypt --input mensaje.asc
-
-# Guardar resultado en archivo
-gpgshare decrypt --input mensaje.asc --output resultado.txt
-
-# Copiar resultado al portapapeles
-gpgshare decrypt --clipboard
-
-# Con passphrase
-gpgshare decrypt --passphrase
-```
-
-### Listar colaboradores
-
-```bash
-gpgshare list
-```
-
-### Listar claves en el keyring GPG
-
-```bash
-gpgshare list-keys           # claves públicas
-gpgshare list-keys --secret  # claves privadas
-```
-
----
-
-## Estructura del proyecto
-
-```
-gpgshare/
-├── .env.example         # plantilla de configuración
-├── .env                 # tu configuración local (NO commitear)
-├── collaborators.yaml   # directorio de colaboradores (versionado)
-├── keys/                # claves públicas (.asc) de colaboradores
-├── gpgshare/
-│   ├── cli.py           # comandos CLI (Typer + Rich)
-│   ├── crypto.py        # operaciones GPG
-│   ├── collaborators.py # lectura/escritura del YAML
-│   └── config.py        # carga del .env
-└── pyproject.toml
-```
-
----
-
-## Flujo típico entre colaboradores
-
-```
-Juan quiere mandar un secreto a Gabriel:
-
-1. Juan corre:  gpgshare encrypt gabriel -m "pass: X9#kL2" --clipboard
-2. Juan pega el bloque cifrado en Slack/mail/lo que sea
-3. Gabriel corre: gpgshare decrypt --clipboard  (o pega por stdin)
-4. Gabriel ve el mensaje descifrado + confirmación de firma de Juan
-```
-
----
-
-## Múltiples identidades en la misma máquina
-
-Podés tener varias claves GPG conviviendo en el mismo keyring. Útil para probar el flujo o manejar múltiples cuentas.
-
-```bash
-# Generar una segunda clave con otro email
-gpg --full-generate-key
-
-# Exportar su clave privada
-gpg --armor --export-secret-keys otro@correo.com > ~/.gnupg/otro-private-key.asc
-
-# Exportar su clave pública para registrarla como colaborador
-gpg --armor --export otro@correo.com > /tmp/otro.asc
-gpgshare add-key otro otro@correo.com /tmp/otro.asc
-```
-
-Para usar gpgshare con esa identidad, cambiás `.env`:
+Open the `.env` file that was just created and fill in two required fields:
 
 ```env
-GPG_PRIVATE_KEY_PATH=~/.gnupg/otro-private-key.asc
-GPG_SIGNER_EMAIL=otro@correo.com
+GPG_PRIVATE_KEY_PATH=~/.gnupg/my-private-key.asc
+GPG_SIGNER_EMAIL=you@yourcompany.com
+```
+
+> **Don't have a GPG key yet?** See [GPG Setup →](docs/gpg-setup.md)
+
+### 3. Register yourself as a collaborator
+
+Before anyone can send you an encrypted message, they need your public key.
+Run this once to export it and register it in the project:
+
+```bash
+source .venv/bin/activate
+gpgshare tui   # then go to Setup → Register my public key
+```
+
+Or via CLI:
+
+```bash
+gpg --armor --export you@yourcompany.com > /tmp/your-key.asc
+gpgshare add-key yourAlias you@yourcompany.com /tmp/your-key.asc
+```
+
+Then commit `collaborators.yaml` and the new `.asc` file in `keys/` and open a Pull Request so your teammates can pull the update.
+
+### 4. Send an encrypted message
+
+```bash
+# Encrypt a message for a teammate (replace "juan" with their alias)
+gpgshare encrypt juan --message "Production token: abc123" --clipboard
+```
+
+Paste the output wherever you like. Only Juan can read it.
+
+### 5. Decrypt a message
+
+```bash
+# Paste the ciphertext when prompted
+gpgshare decrypt
 ```
 
 ---
 
-## Notas de seguridad
+## Terminal UI
 
-- Los mensajes se cifran **y firman** en un solo paso. El destinatario puede verificar quién lo envió.
-- Nunca commiteés tu `.env` ni tu clave privada.
-- Las claves privadas nunca tocan el repositorio. Solo las públicas van en `keys/`.
-- Si usás `gpg-agent` (recomendado en macOS con GPG Suite), no necesitás passphrase en cada comando.
+```bash
+gpgshare tui
+```
+
+The TUI provides the same features with a guided interface — no commands to remember.
+Use **Setup** (key `S`) to configure your environment and manage your GPG keys.
+
+---
+
+## Language
+
+gpgshare supports **English** (default) and **Spanish**.
+Set the language in `.env`:
+
+```env
+LANGUAGE=es   # or: en
+```
+
+Or change it from the TUI Setup screen. A restart is required to apply the change.
+
+---
+
+## Documentation
+
+| Topic | Link |
+|---|---|
+| CLI command reference | [docs/cli.md](docs/cli.md) |
+| Configuration (.env) | [docs/configuration.md](docs/configuration.md) |
+| Adding collaborators | [docs/collaborators.md](docs/collaborators.md) |
+| GPG key setup | [docs/gpg-setup.md](docs/gpg-setup.md) |
+| Architecture & code | [docs/architecture.md](docs/architecture.md) |
+
+---
+
+## Security notes
+
+- Messages are **encrypted and signed** in one step. Recipients can verify who sent them.
+- Never commit your `.env` or private key — both are in `.gitignore`.
+- Only public keys live in the repository (`keys/`). Private keys never leave your machine.
