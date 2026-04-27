@@ -69,10 +69,14 @@ class SetupScreen(Screen):
                     yield Input(value=current.get(key, ""), placeholder=key, id=f"input-{key}")
 
                 yield Label(t("setup.label_language"), classes="form-label")
+                _lang_opts = [("English", "en"), ("Español", "es")]
+                _lang_val = current.get("LANGUAGE", "en")
+                if _lang_val not in {v for _, v in _lang_opts}:
+                    _lang_val = "en"
                 yield Select(
-                    options=[("English", "en"), ("Español", "es")],
+                    options=_lang_opts,
                     id="input-LANGUAGE",
-                    value=current.get("LANGUAGE", "en"),
+                    value=_lang_val,
                     allow_blank=False,
                 )
 
