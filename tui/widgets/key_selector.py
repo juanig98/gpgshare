@@ -7,6 +7,7 @@ from textual.app import ComposeResult
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Select, Label
+from gpgshare.i18n import t
 
 
 class KeySelector(Widget):
@@ -25,8 +26,8 @@ class KeySelector(Widget):
             self.email = email
 
     def compose(self) -> ComposeResult:
-        yield Label("Destinatario", classes="form-label")
-        yield Select(options=self._load_options(), id="key-select", prompt="Elegir colaborador…")
+        yield Label(t("key_selector.label"), classes="form-label")
+        yield Select(options=self._load_options(), id="key-select", prompt=t("key_selector.prompt"))
 
     def _load_options(self) -> list[tuple[str, str]]:
         try:

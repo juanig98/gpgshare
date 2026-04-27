@@ -21,6 +21,7 @@ from gpgshare.collaborators import (
     load_all, find_by_alias, add_collaborator, validate_registry
 )
 from gpgshare import crypto
+from gpgshare.i18n import t, setup_language
 
 app = typer.Typer(
     name="gpgshare",
@@ -39,18 +40,17 @@ def _startup_check(cfg: Config) -> None:
     """Validate config and key registry on startup. Abort on critical errors."""
     errors = validate_registry(cfg.collaborators_file, cfg.keys_dir)
     if errors:
-        err_console.print("[bold red]⚠ Registry integrity errors:[/bold red]")
+        err_console.print(f"[bold red]{t('cli.startup.registry_errors')}[/bold red]")
         for e in errors:
             err_console.print(f"  [red]• {e}[/red]")
-        console.print(
-            "[yellow]Some collaborator keys are missing from disk. "
-            "Run [bold]gpgshare list[/bold] to review.[/yellow]\n"
-        )
+        console.print(f"[yellow]{t('cli.startup.keys_missing')}[/yellow]\n")
 
 
 def _load_config() -> Config:
     try:
-        return Config.load()
+        cfg = Config.load()
+        setup_language(cfg.language)
+        return cfg
     except EnvironmentError as e:
         err_console.print(str(e))
         raise typer.Exit(1)
@@ -81,40 +81,35 @@ def encrypt(
     cfg = _load_config()
     _startup_check(cfg)
 
-    # Resolve recipient
     collaborator = find_by_alias(cfg.collaborators_file, recipient)
     if not collaborator:
-        err_console.print(f"Collaborator '[bold]{recipient}[/bold]' not found in registry.")
+        err_console.print(t("cli.encrypt.collaborator_not_found", recipient=recipient))
         raise typer.Exit(1)
 
-    # Get message
     if message is None:
         if sys.stdin.isatty():
-            console.print("[dim]Enter message (Ctrl+D to finish):[/dim]")
+            console.print(f"[dim]{t('cli.encrypt.stdin_prompt')}[/dim]")
         message = sys.stdin.read()
 
     if not message.strip():
-        err_console.print("Empty message. Nothing to encrypt.")
+        err_console.print(t("cli.encrypt.empty_message"))
         raise typer.Exit(1)
 
-    # Ensure recipient's public key is imported
     key_path = cfg.keys_dir / collaborator.gpgkey
     ok, result = crypto.import_key(str(key_path), cfg.gpg_home)
     if not ok:
-        err_console.print(f"Could not import recipient key: {result}")
+        err_console.print(t("cli.encrypt.error_import_recipient", result=result))
         raise typer.Exit(1)
 
-    # Ensure own private key is imported
     ok, result = crypto.import_key(cfg.private_key_path, cfg.gpg_home)
     if not ok:
-        err_console.print(f"Could not import private key: {result}")
+        err_console.print(t("cli.encrypt.error_import_private", result=result))
         raise typer.Exit(1)
 
     pw = getpass.getpass("Private key passphrase (leave empty for gpg-agent): ") if passphrase else None
 
     console.print(
-        f"[dim]Encrypting for [bold]{collaborator.alias}[/bold] "
-        f"<{collaborator.email}> and signing as [bold]{cfg.signer_email}[/bold]…[/dim]"
+        f"[dim]{t('cli.encrypt.encrypting', alias=collaborator.alias, email=collaborator.email, signer=cfg.signer_email)}[/dim]"
     )
 
     ok, ciphertext = crypto.encrypt_and_sign(
@@ -126,19 +121,18 @@ def encrypt(
     )
 
     if not ok:
-        err_console.print(ciphertext)  # ciphertext contains the error here
+        err_console.print(ciphertext)
         raise typer.Exit(1)
 
-    # Output
     if output:
         output.write_text(ciphertext)
-        console.print(f"[green]✓ Ciphertext written to [bold]{output}[/bold][/green]")
+        console.print(f"[green]{t('cli.encrypt.written', output=output)}[/green]")
     else:
-        console.print(Panel(ciphertext, title="[bold green]Encrypted message[/bold green]", box=box.ROUNDED))
+        console.print(Panel(ciphertext, title=f"[bold green]{t('cli.encrypt.panel_title')}[/bold green]", box=box.ROUNDED))
 
     if clipboard:
         pyperclip.copy(ciphertext)
-        console.print("[green]✓ Copied to clipboard.[/green]")
+        console.print(f"[green]{t('cli.encrypt.copied')}[/green]")
 
 
 @app.command()
@@ -164,22 +158,20 @@ def decrypt(
     cfg = _load_config()
     _startup_check(cfg)
 
-    # Ensure own private key is imported
     ok, result = crypto.import_key(cfg.private_key_path, cfg.gpg_home)
     if not ok:
-        err_console.print(f"Could not import private key: {result}")
+        err_console.print(t("cli.encrypt.error_import_private", result=result))
         raise typer.Exit(1)
 
-    # Get ciphertext
     if input_file:
         ciphertext = input_file.read_text()
     elif ciphertext is None:
         if sys.stdin.isatty():
-            console.print("[dim]Paste ciphertext (Ctrl+D to finish):[/dim]")
+            console.print(f"[dim]{t('cli.decrypt.stdin_prompt')}[/dim]")
         ciphertext = sys.stdin.read()
 
     if not ciphertext or not ciphertext.strip():
-        err_console.print("No ciphertext provided.")
+        err_console.print(t("cli.decrypt.no_ciphertext"))
         raise typer.Exit(1)
 
     pw = getpass.getpass("Private key passphrase (leave empty for gpg-agent): ") if passphrase else None
@@ -191,25 +183,23 @@ def decrypt(
     )
 
     if not ok:
-        err_console.print(plaintext)  # contains the error
+        err_console.print(plaintext)
         raise typer.Exit(1)
 
-    # Show signer info
     if signer_fp:
-        console.print(f"[green]✓ Signature verified — signed by fingerprint: [bold]{signer_fp}[/bold][/green]")
+        console.print(f"[green]{t('cli.decrypt.sig_valid', signer_fp=signer_fp)}[/green]")
     else:
-        console.print("[yellow]⚠ No signature found or could not verify signature.[/yellow]")
+        console.print(f"[yellow]{t('cli.decrypt.sig_invalid')}[/yellow]")
 
-    # Output
     if output:
         output.write_text(plaintext)
-        console.print(f"[green]✓ Plaintext written to [bold]{output}[/bold][/green]")
+        console.print(f"[green]{t('cli.decrypt.written', output=output)}[/green]")
     else:
-        console.print(Panel(plaintext, title="[bold green]Decrypted message[/bold green]", box=box.ROUNDED))
+        console.print(Panel(plaintext, title=f"[bold green]{t('cli.decrypt.panel_title')}[/bold green]", box=box.ROUNDED))
 
     if clipboard:
         pyperclip.copy(plaintext)
-        console.print("[green]✓ Copied to clipboard.[/green]")
+        console.print(f"[green]{t('cli.encrypt.copied')}[/green]")
 
 
 @app.command("add-key")
@@ -227,45 +217,38 @@ def add_key(
     cfg = _load_config()
 
     if not key_file.exists():
-        err_console.print(f"Key file not found: {key_file}")
+        err_console.print(t("cli.add_key.file_not_found", key_file=key_file))
         raise typer.Exit(1)
 
-    # Derive a canonical filename from the email
     canonical_name = email.lower().replace("@", "-").replace(".", "-") + ".asc"
     dest = cfg.keys_dir / canonical_name
 
     cfg.keys_dir.mkdir(parents=True, exist_ok=True)
 
     if dest.exists():
-        overwrite = typer.confirm(f"Key file '{canonical_name}' already exists. Overwrite?")
+        overwrite = typer.confirm(t("cli.add_key.confirm_overwrite", canonical_name=canonical_name))
         if not overwrite:
             raise typer.Abort()
 
     shutil.copy2(key_file, dest)
-    console.print(f"[green]✓ Key copied to [bold]{dest}[/bold][/green]")
+    console.print(f"[green]{t('cli.add_key.key_copied', dest=dest)}[/green]")
 
-    # Import into keyring
     ok, fingerprint = crypto.import_key(str(dest), cfg.gpg_home)
     if ok:
-        console.print(f"[green]✓ Key imported into GPG keyring. Fingerprint: {fingerprint}[/green]")
+        console.print(f"[green]{t('cli.add_key.key_imported', fingerprint=fingerprint)}[/green]")
     else:
-        console.print(f"[yellow]⚠ Key file copied but GPG import failed: {fingerprint}[/yellow]")
+        console.print(f"[yellow]{t('cli.add_key.import_warn', fingerprint=fingerprint)}[/yellow]")
 
-    # Add to YAML
     try:
         add_collaborator(cfg.collaborators_file, alias, email, canonical_name)
         console.print(
-            f"[green]✓ Collaborator [bold]{alias}[/bold] added to "
-            f"[bold]{cfg.collaborators_file.name}[/bold][/green]"
+            f"[green]{t('cli.add_key.collaborator_added', alias=alias, filename=cfg.collaborators_file.name)}[/green]"
         )
     except ValueError as e:
         err_console.print(str(e))
         raise typer.Exit(1)
 
-    console.print(
-        "\n[bold yellow]Next step:[/bold yellow] commit [bold]collaborators.yaml[/bold] "
-        "and the new key file, then open a Pull Request."
-    )
+    console.print(t("cli.add_key.next_step"))
 
 
 @app.command()
@@ -277,18 +260,18 @@ def list():
     collaborators = load_all(cfg.collaborators_file)
 
     if not collaborators:
-        console.print("[yellow]No collaborators registered yet.[/yellow]")
+        console.print(f"[yellow]{t('cli.list.no_collaborators')}[/yellow]")
         raise typer.Exit()
 
-    table = Table(title="Collaborators", box=box.ROUNDED, show_lines=True)
-    table.add_column("Alias", style="bold cyan")
-    table.add_column("Email", style="white")
-    table.add_column("Key file", style="dim")
-    table.add_column("Key present", justify="center")
+    table = Table(title=t("cli.list.table_title"), box=box.ROUNDED, show_lines=True)
+    table.add_column(t("cli.list.col_alias"), style="bold cyan")
+    table.add_column(t("cli.list.col_email"), style="white")
+    table.add_column(t("cli.list.col_keyfile"), style="dim")
+    table.add_column(t("cli.list.col_present"), justify="center")
 
     for c in collaborators:
         key_path = cfg.keys_dir / c.gpgkey
-        present = "[green]✓[/green]" if key_path.exists() else "[red]✗ missing[/red]"
+        present = t("cli.list.present") if key_path.exists() else t("cli.list.missing")
         table.add_row(c.alias, c.email, c.gpgkey, present)
 
     console.print(table)
@@ -303,14 +286,14 @@ def list_keys(
     keys = crypto.list_secret_keys(cfg.gpg_home) if secret else crypto.list_public_keys(cfg.gpg_home)
 
     if not keys:
-        console.print("[yellow]No keys found in keyring.[/yellow]")
+        console.print(f"[yellow]{t('cli.list_keys.no_keys')}[/yellow]")
         raise typer.Exit()
 
-    label = "Private" if secret else "Public"
-    table = Table(title=f"{label} keys in GPG keyring", box=box.ROUNDED, show_lines=True)
-    table.add_column("Key ID", style="bold cyan")
-    table.add_column("Fingerprint", style="dim")
-    table.add_column("UIDs")
+    label = t("cli.list_keys.label_private") if secret else t("cli.list_keys.label_public")
+    table = Table(title=t("cli.list_keys.table_title", label=label), box=box.ROUNDED, show_lines=True)
+    table.add_column(t("cli.list_keys.col_keyid"), style="bold cyan")
+    table.add_column(t("cli.list_keys.col_fingerprint"), style="dim")
+    table.add_column(t("cli.list_keys.col_uids"))
 
     for k in keys:
         table.add_row(k["keyid"], k["fingerprint"], "\n".join(k["uids"]))

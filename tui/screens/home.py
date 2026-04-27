@@ -6,16 +6,17 @@ from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Button, Static
 from textual.containers import Center, Middle, Vertical
+from gpgshare.i18n import t
 
 
 class HomeScreen(Screen):
     BINDINGS = [
-        ("1", "go_encrypt", "Cifrar"),
-        ("2", "go_decrypt", "Descifrar"),
-        ("3", "go_collaborators", "Colaboradores"),
-        ("s", "go_setup", "Configuración"),
-        ("d", "toggle_dark", "Oscuro/Claro"),
-        ("q", "quit_app", "Salir"),
+        ("1", "go_encrypt", "Encrypt"),
+        ("2", "go_decrypt", "Decrypt"),
+        ("3", "go_collaborators", "Collaborators"),
+        ("s", "go_setup", "Setup"),
+        ("d", "toggle_dark", "Dark/Light"),
+        ("q", "quit_app", "Quit"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -23,19 +24,19 @@ class HomeScreen(Screen):
         with Center():
             with Middle():
                 with Vertical(id="menu-container"):
-                    yield Static("GPGShare", id="home-title")
-                    yield Static("Encriptación GPG entre colaboradores", id="home-subtitle")
-                    yield Button("1  Cifrar mensaje", id="btn-encrypt", variant="primary")
-                    yield Button("2  Descifrar mensaje", id="btn-decrypt")
-                    yield Button("3  Colaboradores", id="btn-collaborators")
-                    yield Button("S  Configuración", id="btn-setup", variant="warning")
-                    yield Button("Q  Salir", id="btn-quit", variant="error")
+                    yield Static(t("home.title"), id="home-title")
+                    yield Static(t("home.subtitle"), id="home-subtitle")
+                    yield Button(t("home.btn_encrypt"), id="btn-encrypt", variant="primary")
+                    yield Button(t("home.btn_decrypt"), id="btn-decrypt")
+                    yield Button(t("home.btn_collaborators"), id="btn-collaborators")
+                    yield Button(t("home.btn_setup"), id="btn-setup", variant="warning")
+                    yield Button(t("home.btn_quit"), id="btn-quit", variant="error")
         yield Footer()
 
     def on_mount(self) -> None:
         cfg = getattr(self.app, "_cfg", None)
         if cfg:
-            self.sub_title = f"Firmando como: {cfg.signer_email}"
+            self.sub_title = t("home.subtitle_signing", email=cfg.signer_email)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:

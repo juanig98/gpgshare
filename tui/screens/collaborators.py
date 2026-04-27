@@ -10,12 +10,13 @@ from textual.screen import Screen, ModalScreen
 from textual.widgets import Header, Footer, DataTable, Button, Input, Label, Static
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual import work
+from gpgshare.i18n import t
 
 
 class AddCollaboratorModal(ModalScreen):
     """Modal para agregar un nuevo colaborador."""
 
-    BINDINGS = [Binding("escape", "dismiss", "Cancelar", priority=True)]
+    BINDINGS = [Binding("escape", "dismiss", "Cancel", priority=True)]
 
     def on_key(self, event) -> None:
         if event.key == "escape":
@@ -24,16 +25,16 @@ class AddCollaboratorModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="modal-container"):
-            yield Static("Agregar colaborador", id="modal-title")
-            yield Label("Alias (ej: juan)", classes="form-label")
-            yield Input(placeholder="juan", id="input-alias")
-            yield Label("Email", classes="form-label")
-            yield Input(placeholder="juan@empresa.com", id="input-email")
-            yield Label("Ruta al archivo .asc", classes="form-label")
-            yield Input(placeholder="/ruta/a/juan.asc", id="input-keypath")
+            yield Static(t("collaborators.modal.title"), id="modal-title")
+            yield Label(t("collaborators.modal.label_alias"), classes="form-label")
+            yield Input(placeholder=t("collaborators.modal.placeholder_alias"), id="input-alias")
+            yield Label(t("collaborators.modal.label_email"), classes="form-label")
+            yield Input(placeholder=t("collaborators.modal.placeholder_email"), id="input-email")
+            yield Label(t("collaborators.modal.label_keypath"), classes="form-label")
+            yield Input(placeholder=t("collaborators.modal.placeholder_keypath"), id="input-keypath")
             with Horizontal(id="modal-actions"):
-                yield Button("Agregar", id="btn-confirm", variant="primary")
-                yield Button("Cancelar", id="btn-cancel")
+                yield Button(t("collaborators.modal.btn_add"), id="btn-confirm", variant="primary")
+                yield Button(t("collaborators.modal.btn_cancel"), id="btn-cancel")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-cancel":
@@ -48,13 +49,13 @@ class AddCollaboratorModal(ModalScreen):
 
         errors = []
         if not alias:
-            errors.append("El alias no puede estar vacío.")
+            errors.append(t("collaborators.modal.error_alias_empty"))
         if not email or "@" not in email:
-            errors.append("El email no es válido.")
+            errors.append(t("collaborators.modal.error_email_invalid"))
         if not key_path:
-            errors.append("La ruta al archivo .asc no puede estar vacía.")
+            errors.append(t("collaborators.modal.error_keypath_empty"))
         elif not Path(key_path).exists():
-            errors.append(f"Archivo no encontrado: {key_path}")
+            errors.append(t("collaborators.modal.error_file_not_found", key_path=key_path))
 
         if errors:
             for e in errors:
@@ -66,20 +67,20 @@ class AddCollaboratorModal(ModalScreen):
 
 class CollaboratorsScreen(Screen):
     BINDINGS = [
-        Binding("escape", "pop_screen", "Volver", priority=True),
-        ("r", "reload", "Recargar"),
-        ("a", "add", "Agregar"),
+        Binding("escape", "pop_screen", "Back", priority=True),
+        ("r", "reload", "Reload"),
+        ("a", "add", "Add"),
     ]
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with ScrollableContainer():
             with Vertical(classes="form-section"):
-                yield Label("Colaboradores registrados", classes="form-label")
+                yield Label(t("collaborators.label_list"), classes="form-label")
                 with Horizontal(id="collab-actions"):
-                    yield Button("A  Agregar colaborador", id="btn-add", variant="primary")
-                    yield Button("R  Recargar", id="btn-reload")
-                    yield Button("Volver", id="btn-back")
+                    yield Button(t("collaborators.btn_add"), id="btn-add", variant="primary")
+                    yield Button(t("collaborators.btn_reload"), id="btn-reload")
+                    yield Button(t("collaborators.btn_back"), id="btn-back")
                 yield DataTable(id="collab-table")
         yield Footer()
 
@@ -89,9 +90,14 @@ class CollaboratorsScreen(Screen):
             self.app.pop_screen()
 
     def on_mount(self) -> None:
-        self.title = "GPGShare — Colaboradores"
+        self.title = t("collaborators.title")
         table = self.query_one("#collab-table", DataTable)
-        table.add_columns("Alias", "Email", "Archivo de clave", "Estado")
+        table.add_columns(
+            t("collaborators.table.alias"),
+            t("collaborators.table.email"),
+            t("collaborators.table.keyfile"),
+            t("collaborators.table.status"),
+        )
         self._load_table()
 
     def _load_table(self) -> None:
@@ -105,10 +111,10 @@ class CollaboratorsScreen(Screen):
             collaborators = load_all(cfg.collaborators_file)
             for c in collaborators:
                 key_path = cfg.keys_dir / c.gpgkey
-                status = "✓ presente" if key_path.exists() else "✗ faltante"
+                status = t("collaborators.status_present") if key_path.exists() else t("collaborators.status_missing")
                 table.add_row(c.alias, c.email, c.gpgkey, status)
         except Exception as exc:
-            self.app.notify(f"Error al cargar colaboradores: {exc}", severity="error")
+            self.app.notify(t("collaborators.notify.load_error", exc=exc), severity="error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -121,7 +127,7 @@ class CollaboratorsScreen(Screen):
 
     def action_reload(self) -> None:
         self._load_table()
-        self.app.notify("Lista recargada.", severity="information")
+        self.app.notify(t("collaborators.notify.reloaded"), severity="information")
 
     def action_add(self) -> None:
         self.app.push_screen(AddCollaboratorModal(), callback=self._on_modal_result)
@@ -152,7 +158,7 @@ class CollaboratorsScreen(Screen):
             if not ok:
                 self.app.call_from_thread(
                     self.app.notify,
-                    f"Clave copiada pero no importada: {fingerprint}",
+                    t("collaborators.notify.key_imported_warn", fingerprint=fingerprint),
                     severity="warning",
                 )
 
@@ -161,8 +167,7 @@ class CollaboratorsScreen(Screen):
             self.app.call_from_thread(self._load_table)
             self.app.call_from_thread(
                 self.app.notify,
-                f"Colaborador '{alias}' agregado. "
-                "Commiteá collaborators.yaml y abrí un Pull Request.",
+                t("collaborators.notify.added", alias=alias),
                 severity="information",
             )
         except ValueError as exc:
@@ -170,6 +175,6 @@ class CollaboratorsScreen(Screen):
         except Exception as exc:
             self.app.call_from_thread(
                 self.app.notify,
-                f"Error al registrar colaborador: {exc}",
+                t("collaborators.notify.register_error", exc=exc),
                 severity="error",
             )
