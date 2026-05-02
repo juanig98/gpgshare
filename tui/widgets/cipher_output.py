@@ -21,6 +21,9 @@ class CipherOutput(Widget):
     CipherOutput.visible {
         display: block;
     }
+    #output-text {
+        height: 20;
+    }
     #save-path-row {
         layout: horizontal;
         height: auto;

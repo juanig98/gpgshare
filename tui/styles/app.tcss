@@ -50,6 +50,16 @@ Screen {
     padding: 0 1;
 }
 
+/* ── TextAreas ───────────────────────────────────────────── */
+
+#message-input {
+    height: 12;
+}
+
+#cipher-input {
+    height: 16;
+}
+
 /* ── Forms ───────────────────────────────────────────────── */
 
 .form-label {
@@ -78,7 +88,6 @@ Screen {
     border: round $success;
     padding: 0 1;
     height: auto;
-    max-height: 14;
     display: none;
 }
 
@@ -172,6 +181,17 @@ AddCollaboratorModal {
 
 #passphrase-input {
     width: 1fr;
+}
+
+/* ── Error detail ────────────────────────────────────────── */
+
+.error-detail {
+    color: $error;
+    background: #2a1010;
+    padding: 1;
+    margin: 1 0;
+    border: tall $error;
+    height: auto;
 }
 
 /* ── Loading ─────────────────────────────────────────────── */

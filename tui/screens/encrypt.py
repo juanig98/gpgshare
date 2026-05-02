@@ -5,7 +5,7 @@ EncryptScreen — cifrar un mensaje para un colaborador.
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import Header, Footer, TextArea, Button, Checkbox, Input, Label, LoadingIndicator
+from textual.widgets import Header, Footer, TextArea, Button, Checkbox, Input, Label, LoadingIndicator, Static
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.worker import Worker, WorkerState
 from textual import work
@@ -46,6 +46,7 @@ class EncryptScreen(Screen):
                     yield Button(t("encrypt.btn_back"), id="btn-back", variant="default")
 
                 yield LoadingIndicator(id="loading")
+                yield Static("", id="encrypt-error", classes="error-detail")
                 yield CipherOutput(title=t("encrypt.cipher_output_title"), id="cipher-output")
         yield Footer()
 
@@ -56,6 +57,7 @@ class EncryptScreen(Screen):
 
     def on_mount(self) -> None:
         self.query_one("#loading", LoadingIndicator).display = False
+        self.query_one("#encrypt-error", Static).display = False
         self.title = t("encrypt.title")
         cfg = getattr(self.app, "_cfg", None)
         if cfg:
@@ -146,9 +148,7 @@ class EncryptScreen(Screen):
             if ok:
                 self.app.call_from_thread(self._show_result, ciphertext)
             else:
-                self.app.call_from_thread(
-                    self.app.notify, t("encrypt.notify.error_encrypt", ciphertext=ciphertext), severity="error"
-                )
+                self.app.call_from_thread(self._show_error, ciphertext)
         finally:
             self.app.call_from_thread(self._set_loading, False)
 
@@ -156,6 +156,12 @@ class EncryptScreen(Screen):
         self.query_one("#loading", LoadingIndicator).display = visible
         self.query_one("#btn-encrypt", Button).disabled = visible
 
+    def _show_error(self, error: str) -> None:
+        widget = self.query_one("#encrypt-error", Static)
+        widget.update(t("encrypt.notify.error_encrypt", error=error))
+        widget.display = True
+
     def _show_result(self, ciphertext: str) -> None:
+        self.query_one("#encrypt-error", Static).display = False
         self.query_one("#cipher-output", CipherOutput).set_content(ciphertext)
         self.app.notify(t("encrypt.notify.success"), severity="information")
