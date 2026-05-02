@@ -24,7 +24,7 @@ CLI + TUI para cifrar y descifrar mensajes entre colaboradores usando GPG. El us
 - **python-dotenv** — configuración local
 - **pyperclip** — portapapeles
 
-Instalación: `bash install.sh` (o `pip install -e ".[dev]"` manualmente)
+Instalación: `bash scripts/install.sh` (o `pip install -e ".[dev]"` manualmente)
 Entrypoint: `gpgshare` (definido en `pyproject.toml` → `gpgshare.cli:main`)
 
 ## Estructura de archivos
@@ -43,7 +43,10 @@ gpgshare/
 ├── keys/               # Archivos .asc de claves públicas (van a VCS)
 ├── .env                # Config local — NUNCA commitear
 ├── .env.example        # Plantilla de configuración
-├── install.sh          # Script de setup inicial
+├── run.sh              # Punto de entrada — instala, verifica clave y lanza la TUI
+├── scripts/
+│   ├── install.sh      # Setup del entorno virtual y dependencias
+│   └── generate-key.sh # Generación interactiva de clave GPG
 └── tui/
     ├── app.py                      # GpgShareApp (raíz Textual)
     ├── screens/
