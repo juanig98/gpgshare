@@ -21,6 +21,7 @@ _PASSPHRASE_KEYWORDS = (
     "inappropriate ioctl",
     "gpg-agent",
     "operation cancelled",
+    "need_passphrase"
 )
 
 
