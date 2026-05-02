@@ -17,3 +17,6 @@ venv/
 *.asc.private
 *-secret*
 *-private*
+
+collaborators.yaml
+keys/
