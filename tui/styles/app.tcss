@@ -60,6 +60,23 @@ Screen {
     height: 16;
 }
 
+/* ── KeySelector ─────────────────────────────────────────── */
+
+#key-selection {
+    height: 6;
+    margin: 1 0;
+}
+
+#selection-actions {
+    layout: horizontal;
+    height: auto;
+    padding: 0 0 1 0;
+}
+
+#selection-actions Button {
+    margin-right: 1;
+}
+
 /* ── Forms ───────────────────────────────────────────────── */
 
 .form-label {

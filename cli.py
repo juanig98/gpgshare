@@ -18,7 +18,7 @@ from rich import box
 
 from gpgshare.config import Config
 from gpgshare.collaborators import (
-    load_all, find_by_alias, add_collaborator, validate_registry
+    load_all, find_by_alias, add_collaborator, validate_registry,
 )
 from gpgshare import crypto
 from gpgshare.i18n import t, setup_language
@@ -62,7 +62,12 @@ def _load_config() -> Config:
 
 @app.command()
 def encrypt(
-    recipient: str = typer.Argument(..., help="Alias of the recipient collaborator."),
+    recipients: Optional[list[str]] = typer.Argument(
+        None, help="Alias(es) of recipient collaborator(s). Omit if using --all."
+    ),
+    all_collaborators: bool = typer.Option(
+        False, "--all", "-a", help="Encrypt for all registered collaborators."
+    ),
     message: Optional[str] = typer.Option(
         None, "--message", "-m", help="Text to encrypt. If omitted, reads from stdin."
     ),
@@ -81,10 +86,23 @@ def encrypt(
     cfg = _load_config()
     _startup_check(cfg)
 
-    collaborator = find_by_alias(cfg.collaborators_file, recipient)
-    if not collaborator:
-        err_console.print(t("cli.encrypt.collaborator_not_found", recipient=recipient))
-        raise typer.Exit(1)
+    target_collaborators: list = []
+
+    if all_collaborators:
+        target_collaborators = load_all(cfg.collaborators_file)
+        if not target_collaborators:
+            err_console.print(t("cli.encrypt.no_collaborators"))
+            raise typer.Exit(1)
+    else:
+        if not recipients:
+            err_console.print(t("cli.encrypt.no_recipients"))
+            raise typer.Exit(1)
+        for alias in recipients:
+            collab = find_by_alias(cfg.collaborators_file, alias)
+            if not collab:
+                err_console.print(t("cli.encrypt.collaborator_not_found", recipient=alias))
+                raise typer.Exit(1)
+            target_collaborators.append(collab)
 
     if message is None:
         if sys.stdin.isatty():
@@ -95,11 +113,14 @@ def encrypt(
         err_console.print(t("cli.encrypt.empty_message"))
         raise typer.Exit(1)
 
-    key_path = cfg.keys_dir / collaborator.gpgkey
-    ok, result = crypto.import_key(str(key_path), cfg.gpg_home)
-    if not ok:
-        err_console.print(t("cli.encrypt.error_import_recipient", result=result))
-        raise typer.Exit(1)
+    recipient_emails: list[str] = []
+    for collab in target_collaborators:
+        key_path = cfg.keys_dir / collab.gpgkey
+        ok, result = crypto.import_key(str(key_path), cfg.gpg_home)
+        if not ok:
+            err_console.print(t("cli.encrypt.error_import_recipient", result=result))
+            raise typer.Exit(1)
+        recipient_emails.append(collab.email)
 
     ok, result = crypto.import_key(cfg.private_key_path, cfg.gpg_home)
     if not ok:
@@ -108,13 +129,14 @@ def encrypt(
 
     pw = getpass.getpass("Private key passphrase (leave empty for gpg-agent): ") if passphrase else None
 
+    aliases = ", ".join(c.alias for c in target_collaborators)
     console.print(
-        f"[dim]{t('cli.encrypt.encrypting', alias=collaborator.alias, email=collaborator.email, signer=cfg.signer_email)}[/dim]"
+        f"[dim]{t('cli.encrypt.encrypting', aliases=aliases, signer=cfg.signer_email)}[/dim]"
     )
 
     ok, ciphertext = crypto.encrypt_and_sign(
         content=message,
-        recipient_email=collaborator.email,
+        recipient_emails=recipient_emails,
         signer_key_id=cfg.signer_email,
         passphrase=pw,
         gpg_home=cfg.gpg_home,

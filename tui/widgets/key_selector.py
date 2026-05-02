@@ -1,12 +1,11 @@
 """
-KeySelector — widget que carga colaboradores y expone un Select.
-Emite CollaboratorSelected cuando cambia la selección.
+KeySelector — widget que carga colaboradores y expone un SelectionList.
+Permite selección múltiple de destinatarios.
 """
 
 from textual.app import ComposeResult
-from textual.message import Message
 from textual.widget import Widget
-from textual.widgets import Select, Label
+from textual.widgets import SelectionList, Label
 from gpgshare.i18n import t
 
 
@@ -17,40 +16,47 @@ class KeySelector(Widget):
     }
     """
 
-    class CollaboratorSelected(Message):
-        """Emitido cuando el usuario elige un colaborador."""
-
-        def __init__(self, alias: str, email: str) -> None:
-            super().__init__()
-            self.alias = alias
-            self.email = email
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._loaded = False
 
     def compose(self) -> ComposeResult:
         yield Label(t("key_selector.label"), classes="form-label")
-        yield Select(options=self._load_options(), id="key-select", prompt=t("key_selector.prompt"))
+        yield SelectionList(id="key-selection")
 
-    def _load_options(self) -> list[tuple[str, str]]:
+    def on_mount(self) -> None:
+        self.load_options()
+
+    def load_options(self) -> None:
+        if self._loaded:
+            return
         try:
             from gpgshare.collaborators import load_all
             cfg = getattr(self.app, "_cfg", None)
             if cfg is None:
-                return []
-            collaborators = load_all(cfg.collaborators_file)
-            return [(f"{c.alias}  <{c.email}>", c.alias) for c in collaborators]
-        except Exception:
-            return []
-
-    def on_select_changed(self, event: Select.Changed) -> None:
-        if event.value is Select.BLANK:
-            return
-        alias = str(event.value)
-        try:
-            from gpgshare.collaborators import find_by_alias
-            cfg = getattr(self.app, "_cfg", None)
-            if cfg is None:
                 return
-            collab = find_by_alias(cfg.collaborators_file, alias)
-            if collab:
-                self.post_message(self.CollaboratorSelected(collab.alias, collab.email))
-        except Exception:
-            pass
+            collaborators = load_all(cfg.collaborators_file)
+            sl = self.query_one(SelectionList)
+            options = [
+                (f"{c.alias}  <{c.email}>", c.alias)
+                for c in collaborators
+                if c.email.lower() != cfg.signer_email.lower()
+                and (cfg.keys_dir / c.gpgkey).exists()
+            ]
+            sl.add_options(options)
+            self._loaded = True
+        except Exception as e:
+            import sys
+            print(f"KeySelector load error: {e}", file=sys.stderr)
+
+    def get_selected_aliases(self) -> list[str]:
+        sl = self.query_one(SelectionList)
+        return list(sl.selected)
+
+    def select_all(self) -> None:
+        sl = self.query_one(SelectionList)
+        sl.select_all()
+
+    def deselect_all(self) -> None:
+        sl = self.query_one(SelectionList)
+        sl.deselect_all()

@@ -17,7 +17,12 @@ class HomeScreen(Screen):
         ("s", "go_setup", "Setup"),
         ("d", "toggle_dark", "Dark/Light"),
         ("q", "quit_app", "Quit"),
+        ("up", "move_focus_up", "Previous"),
+        ("down", "move_focus_down", "Next"),
+        ("enter", "press_focused", "Select"),
     ]
+
+    BUTTON_IDS = ["btn-encrypt", "btn-decrypt", "btn-collaborators", "btn-setup", "btn-quit"]
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -37,6 +42,7 @@ class HomeScreen(Screen):
         cfg = getattr(self.app, "_cfg", None)
         if cfg:
             self.sub_title = t("home.subtitle_signing", email=cfg.signer_email)
+        self.query_one("#btn-encrypt", Button).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -72,3 +78,30 @@ class HomeScreen(Screen):
 
     def action_quit_app(self) -> None:
         self.app.exit()
+
+    def action_move_focus_up(self) -> None:
+        current = self.screen.focused
+        if current and current.id in self.BUTTON_IDS:
+            idx = self.BUTTON_IDS.index(current.id)
+            if idx > 0:
+                self.query_one(f"#{self.BUTTON_IDS[idx - 1]}", Button).focus()
+            else:
+                self.query_one(f"#{self.BUTTON_IDS[-1]}", Button).focus()
+        else:
+            self.query_one("#btn-encrypt", Button).focus()
+
+    def action_move_focus_down(self) -> None:
+        current = self.screen.focused
+        if current and current.id in self.BUTTON_IDS:
+            idx = self.BUTTON_IDS.index(current.id)
+            if idx < len(self.BUTTON_IDS) - 1:
+                self.query_one(f"#{self.BUTTON_IDS[idx + 1]}", Button).focus()
+            else:
+                self.query_one(f"#{self.BUTTON_IDS[0]}", Button).focus()
+        else:
+            self.query_one("#btn-encrypt", Button).focus()
+
+    def action_press_focused(self) -> None:
+        focused = self.screen.focused
+        if focused and hasattr(focused, "pressed"):
+            focused.simulate_press()

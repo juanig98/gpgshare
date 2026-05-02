@@ -94,7 +94,7 @@ class TestEncryptAndSign:
             from gpgshare import crypto
             ok, ciphertext = crypto.encrypt_and_sign(
                 content="secret",
-                recipient_email="recipient@example.com",
+                recipient_emails=["recipient@example.com"],
                 signer_key_id="signer@example.com",
             )
 
@@ -113,7 +113,7 @@ class TestEncryptAndSign:
             from gpgshare import crypto
             ok, msg = crypto.encrypt_and_sign(
                 content="secret",
-                recipient_email="nobody@example.com",
+                recipient_emails=["nobody@example.com"],
                 signer_key_id="signer@example.com",
             )
 
@@ -132,7 +132,7 @@ class TestEncryptAndSign:
             from gpgshare import crypto
             crypto.encrypt_and_sign(
                 content="msg",
-                recipient_email="bob@example.com",
+                recipient_emails=["bob@example.com"],
                 signer_key_id="alice@example.com",
                 passphrase="secret123",
             )
