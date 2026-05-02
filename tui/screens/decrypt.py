@@ -43,6 +43,7 @@ class DecryptScreen(Screen):
                     yield Button(t("decrypt.btn_back"), id="btn-back", variant="default")
 
                 yield LoadingIndicator(id="loading")
+                yield Static("", id="decrypt-error", classes="error-detail")
                 yield Static("", id="sig-badge")
                 yield CipherOutput(title=t("decrypt.cipher_output_title"), id="plain-output")
         yield Footer()
@@ -55,6 +56,7 @@ class DecryptScreen(Screen):
     def on_mount(self) -> None:
         self.query_one("#loading", LoadingIndicator).display = False
         self.query_one("#load-path-row").display = False
+        self.query_one("#decrypt-error", Static).display = False
         self.title = t("decrypt.title")
         cfg = getattr(self.app, "_cfg", None)
         if cfg:
@@ -127,11 +129,7 @@ class DecryptScreen(Screen):
             if ok:
                 self.app.call_from_thread(self._show_result, plaintext, signer_fp)
             else:
-                self.app.call_from_thread(
-                    self.app.notify,
-                    t("decrypt.notify.error_decrypt", plaintext=plaintext),
-                    severity="error",
-                )
+                self.app.call_from_thread(self._show_error, plaintext)
         finally:
             self.app.call_from_thread(self._set_loading, False)
 
@@ -139,7 +137,13 @@ class DecryptScreen(Screen):
         self.query_one("#loading", LoadingIndicator).display = visible
         self.query_one("#btn-decrypt", Button).disabled = visible
 
+    def _show_error(self, error: str) -> None:
+        widget = self.query_one("#decrypt-error", Static)
+        widget.update(t("decrypt.notify.error_decrypt", error=error))
+        widget.display = True
+
     def _show_result(self, plaintext: str, signer_fp: str | None) -> None:
+        self.query_one("#decrypt-error", Static).display = False
         self.query_one("#plain-output", CipherOutput).set_content(plaintext)
 
         badge = self.query_one("#sig-badge", Static)

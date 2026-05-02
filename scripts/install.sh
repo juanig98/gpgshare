@@ -41,7 +41,44 @@ ok "Python $($PYTHON --version 2>&1 | awk '{print $2}') → $PYTHON"
 # ── 2. GPG ────────────────────────────────────────────────────────────────────
 
 if ! command -v gpg &>/dev/null; then
-    fail "GPG not found. Install it (e.g. 'sudo apt install gnupg' or 'brew install gnupg') and re-run."
+    warn "GPG no encontrado — intentando instalar automáticamente..."
+
+    OS="$(uname -s)"
+    case "$OS" in
+        Darwin)
+            if command -v brew &>/dev/null; then
+                info "Instalando con Homebrew: brew install gnupg..."
+                brew install gnupg
+            else
+                fail "Homebrew no está instalado. Instalá GPG manualmente: https://gpgtools.org o instala Homebrew primero (https://brew.sh)."
+            fi
+            ;;
+        Linux)
+            if command -v apt-get &>/dev/null; then
+                info "Instalando con apt: sudo apt-get install -y gnupg..."
+                sudo apt-get install -y gnupg
+            elif command -v dnf &>/dev/null; then
+                info "Instalando con dnf: sudo dnf install -y gnupg2..."
+                sudo dnf install -y gnupg2
+            elif command -v yum &>/dev/null; then
+                info "Instalando con yum: sudo yum install -y gnupg2..."
+                sudo yum install -y gnupg2
+            elif command -v pacman &>/dev/null; then
+                info "Instalando con pacman: sudo pacman -S --noconfirm gnupg..."
+                sudo pacman -S --noconfirm gnupg
+            else
+                fail "No se encontró un gestor de paquetes compatible. Instalá GPG manualmente."
+            fi
+            ;;
+        *)
+            fail "Sistema operativo no soportado ($OS). Instalá GPG manualmente."
+            ;;
+    esac
+
+    if ! command -v gpg &>/dev/null; then
+        fail "La instalación de GPG falló. Instalalo manualmente y volvé a ejecutar."
+    fi
+    ok "GPG instalado correctamente."
 fi
 ok "GPG $(gpg --version | head -1 | awk '{print $3}')"
 

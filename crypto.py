@@ -48,28 +48,26 @@ def import_key(key_path: str, gpg_home: Optional[str] = None) -> tuple[bool, str
 
 def encrypt_and_sign(
     content: str,
-    recipient_email: str,
+    recipient_emails: list[str],
     signer_key_id: str,
     passphrase: Optional[str] = None,
     gpg_home: Optional[str] = None,
 ) -> tuple[bool, str]:
     """
-    Encrypt `content` for `recipient_email` and sign with `signer_key_id`.
+    Encrypt `content` for `recipient_emails` and sign with `signer_key_id`.
     Returns (success, ascii_armored_ciphertext_or_error).
     """
     gpg = _gpg(gpg_home)
 
-    # --pinentry-mode loopback prevents gpg-agent from launching a pinentry
-    # dialog (curses/mac) which fails without a real TTY — always needed when
-    # GPG is invoked programmatically (e.g. macOS + Homebrew GPG 2.x).
+    extra: list[str] = ["--pinentry-mode", "loopback"] if passphrase is not None else []
     result = gpg.encrypt(
         content,
-        recipients=[recipient_email],
+        recipients=recipient_emails,
         sign=signer_key_id,
         passphrase=passphrase,
         armor=True,
         always_trust=True,
-        extra_args=["--pinentry-mode", "loopback"],
+        extra_args=extra,
     )
 
     if not result.ok:
@@ -90,11 +88,12 @@ def decrypt_and_verify(
     """
     gpg = _gpg(gpg_home)
 
+    extra = ["--pinentry-mode", "loopback"] if passphrase is not None else []
     result = gpg.decrypt(
         ciphertext,
         passphrase=passphrase,
         always_trust=True,
-        extra_args=["--pinentry-mode", "loopback"],
+        extra_args=extra,
     )
 
     if not result.ok:

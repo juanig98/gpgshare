@@ -31,7 +31,10 @@ gpgshare/
 ├── keys/               # Public key files (.asc) — versioned
 ├── .env                # Local config — never commit
 ├── .env.example        # Config template
-├── install.sh          # Setup script
+├── run.sh              # Entry point — installs, checks key, launches TUI
+├── scripts/
+│   ├── install.sh      # Virtual environment and dependency setup
+│   └── generate-key.sh # Interactive GPG key generation
 └── tui/
     ├── app.py                    # GpgShareApp (Textual root)
     ├── screens/
