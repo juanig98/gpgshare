@@ -43,6 +43,17 @@ Para poder enviarle mensajes cifrados a alguien, necesitás su clave pública.
 
 ---
 
+## Plataformas soportadas
+
+| Sistema | Estado |
+|---|---|
+| macOS (12+) | Soportado — GPG via Homebrew o GPG Suite |
+| Linux (Debian/Ubuntu, Fedora, Arch) | Soportado — GPG via gestor de paquetes |
+
+Windows no está soportado.
+
+---
+
 ## Seguridad
 
 - Los mensajes se cifran **y** se firman. El destinatario puede verificar que vinieron de vos.

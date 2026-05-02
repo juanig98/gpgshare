@@ -13,6 +13,15 @@
 
 Python 3.11+ required. Entry point: `gpgshare` → `gpgshare.cli:main`.
 
+## Supported platforms
+
+| Platform | Status |
+|---|---|
+| macOS (12+) | Supported — GPG via Homebrew or GPG Suite |
+| Linux (Debian/Ubuntu, Fedora, Arch) | Supported — GPG via system package manager |
+
+`scripts/install.sh` auto-detects the OS and installs GPG if missing. Windows is not supported.
+
 ---
 
 ## Project structure

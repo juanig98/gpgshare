@@ -1,4 +1,7 @@
 {
+  "crypto.hint.passphrase_macos": "En macOS GPG no puede abrir un diálogo de contraseña automáticamente. Habilitá la opción de passphrase e ingresá la contraseña de tu clave GPG.",
+  "crypto.hint.passphrase_linux": "Verificá que gpg-agent esté corriendo, o habilitá la opción de passphrase e ingresá la contraseña de tu clave GPG.",
+
   "app.warn.not_registered_title": "No estás registrado como colaborador",
   "app.warn.not_registered": "Tu email ({email}) no está en collaborators.yaml. Andá a Setup → Registrar mi clave pública para que tus compañeros puedan enviarte mensajes.",
 

@@ -4,9 +4,37 @@ Wraps python-gnupg delegating all crypto to the system GPG binary.
 """
 
 import gnupg
+import platform
 import subprocess
 from pathlib import Path
 from typing import Optional
+
+_IS_MACOS = platform.system() == "Darwin"
+
+# GPG stderr keywords that indicate a passphrase/agent problem.
+_PASSPHRASE_KEYWORDS = (
+    "bad passphrase",
+    "no passphrase",
+    "passphrase missing",
+    "no pinentry",
+    "pinentry",
+    "inappropriate ioctl",
+    "gpg-agent",
+    "operation cancelled",
+)
+
+
+def _passphrase_hint(stderr: str, status: str) -> str:
+    """Return a user-facing hint when a GPG error looks passphrase-related."""
+    combined = f"{stderr} {status}".lower()
+    if not any(kw in combined for kw in _PASSPHRASE_KEYWORDS):
+        return ""
+    try:
+        from gpgshare.i18n import t
+        key = "crypto.hint.passphrase_macos" if _IS_MACOS else "crypto.hint.passphrase_linux"
+        return f"\n{t(key)}"
+    except Exception:
+        return ""
 
 
 def _gpg(gpg_home: Optional[str] = None) -> gnupg.GPG:
@@ -59,7 +87,10 @@ def encrypt_and_sign(
     """
     gpg = _gpg(gpg_home)
 
-    extra: list[str] = ["--pinentry-mode", "loopback"] if passphrase is not None else []
+    # Use loopback when a passphrase is provided, or on macOS where gpg-agent
+    # cannot open a pinentry dialog without pinentry-mac installed.
+    use_loopback = passphrase is not None or _IS_MACOS
+    extra: list[str] = ["--pinentry-mode", "loopback"] if use_loopback else []
     result = gpg.encrypt(
         content,
         recipients=recipient_emails,
@@ -71,8 +102,10 @@ def encrypt_and_sign(
     )
 
     if not result.ok:
-        error_detail = result.stderr.strip() if result.stderr else result.status
-        return False, f"Encryption failed: {error_detail}"
+        stderr = result.stderr.strip() if result.stderr else ""
+        status = result.status or ""
+        hint = _passphrase_hint(stderr, status)
+        return False, f"Encryption failed: {stderr or status}{hint}"
 
     return True, str(result)
 
@@ -88,7 +121,8 @@ def decrypt_and_verify(
     """
     gpg = _gpg(gpg_home)
 
-    extra = ["--pinentry-mode", "loopback"] if passphrase is not None else []
+    use_loopback = passphrase is not None or _IS_MACOS
+    extra = ["--pinentry-mode", "loopback"] if use_loopback else []
     result = gpg.decrypt(
         ciphertext,
         passphrase=passphrase,
@@ -97,8 +131,10 @@ def decrypt_and_verify(
     )
 
     if not result.ok:
-        error_detail = result.stderr.strip() if result.stderr else result.status
-        return False, f"Decryption failed: {error_detail}", None
+        stderr = result.stderr.strip() if result.stderr else ""
+        status = result.status or ""
+        hint = _passphrase_hint(stderr, status)
+        return False, f"Decryption failed: {stderr or status}{hint}", None
 
     signer = result.fingerprint if result.fingerprint else None
     return True, str(result), signer

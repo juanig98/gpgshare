@@ -1,4 +1,7 @@
 {
+  "crypto.hint.passphrase_macos": "On macOS, GPG cannot open a passphrase dialog automatically. Enable the passphrase option and enter your GPG key password.",
+  "crypto.hint.passphrase_linux": "Make sure gpg-agent is running, or enable the passphrase option and enter your GPG key password.",
+
   "app.warn.not_registered_title": "Not registered as collaborator",
   "app.warn.not_registered": "Your email ({email}) is not in collaborators.yaml. Go to Setup → Register my public key so teammates can send you messages.",
 

@@ -82,6 +82,41 @@ if ! command -v gpg &>/dev/null; then
 fi
 ok "GPG $(gpg --version | head -1 | awk '{print $3}')"
 
+# ── 2b. pinentry-mac (macOS only) ─────────────────────────────────────────────
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    if command -v pinentry-mac &>/dev/null; then
+        ok "pinentry-mac $(pinentry-mac --version 2>/dev/null | head -1 || echo 'found')"
+    else
+        warn "pinentry-mac no encontrado — GPG no puede abrir diálogos de passphrase en macOS."
+        if command -v brew &>/dev/null; then
+            info "Instalando pinentry-mac con Homebrew..."
+            brew install pinentry-mac
+            ok "pinentry-mac instalado."
+        else
+            warn "Homebrew no disponible. Instalá pinentry-mac manualmente:"
+            info "  brew install pinentry-mac"
+            info "Sin pinentry-mac, deberás ingresar tu passphrase manualmente en la app."
+        fi
+    fi
+
+    # Configure gpg-agent to use pinentry-mac if available
+    PINENTRY_BIN="$(command -v pinentry-mac 2>/dev/null || true)"
+    if [ -n "$PINENTRY_BIN" ]; then
+        AGENT_CONF="$HOME/.gnupg/gpg-agent.conf"
+        mkdir -p "$HOME/.gnupg"
+        if grep -q "pinentry-program" "$AGENT_CONF" 2>/dev/null; then
+            sed -i.bak "s|^pinentry-program.*|pinentry-program $PINENTRY_BIN|" "$AGENT_CONF" \
+                && rm -f "$AGENT_CONF.bak"
+            ok "gpg-agent.conf actualizado con pinentry-mac."
+        else
+            echo "pinentry-program $PINENTRY_BIN" >> "$AGENT_CONF"
+            ok "gpg-agent.conf configurado con pinentry-mac."
+        fi
+        gpgconf --kill gpg-agent 2>/dev/null || true
+    fi
+fi
+
 # ── 3. Virtual environment ────────────────────────────────────────────────────
 
 VENV_DIR=".venv"

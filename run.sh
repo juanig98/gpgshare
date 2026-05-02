@@ -26,7 +26,23 @@ fi
 
 source .venv/bin/activate
 
-# ── 2. Clave privada ──────────────────────────────────────────────────────────
+# ── 2. pinentry-mac (macOS only) ──────────────────────────────────────────────
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    if ! command -v pinentry-mac &>/dev/null; then
+        echo ""
+        echo -e "${YELLOW}┌─────────────────────────────────────────────────────┐${RESET}"
+        echo -e "${YELLOW}│  pinentry-mac no está instalado                     │${RESET}"
+        echo -e "${YELLOW}└─────────────────────────────────────────────────────┘${RESET}"
+        echo ""
+        info "GPG no puede abrir diálogos de contraseña en macOS sin pinentry-mac."
+        info "Podés instalarlo con:  ${BOLD}brew install pinentry-mac${RESET}"
+        info "Mientras tanto, usá la opción de passphrase dentro de la app."
+        echo ""
+    fi
+fi
+
+# ── 3. Clave privada ──────────────────────────────────────────────────────────
 
 PRIVATE_KEY_PATH=""
 
@@ -57,7 +73,7 @@ if [ -z "$PRIVATE_KEY_PATH" ] || [ ! -f "$PRIVATE_KEY_PATH" ]; then
     echo ""
 fi
 
-# ── 3. Lanzar TUI ─────────────────────────────────────────────────────────────
+# ── 4. Lanzar TUI ─────────────────────────────────────────────────────────────
 
 ok "Entorno listo — iniciando gpgshare..."
 echo ""
